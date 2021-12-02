@@ -3,5 +3,6 @@ package main
 type ItemID string
 
 type QueueItem struct {
-	ID ItemID
+	ID   ItemID
+	Body []byte
 }
