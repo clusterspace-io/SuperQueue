@@ -15,25 +15,32 @@ type MapMap struct {
 	Interval int64
 }
 
-func NewMapMap(interval int64) *MapMap {
+func NewMapMap(intervalMS int64) *MapMap {
 	return &MapMap{
-		Interval: interval,
+		Interval: intervalMS,
 		Map:      map[int64]map[ItemID]*QueueItem{},
 	}
 }
 
-// For every bucket between the lower and upper (inclusive) bounds, run a function on the resulting map
-func (m *MapMap) ConsumeRange(lowerbound, upperbound time.Time, consumerFunc func(map[ItemID]*QueueItem)) {
-	for i := lowerbound.UnixMilli(); i < upperbound.UnixMilli(); i += 5 {
+// For every bucket between the lower and upper (inclusive) bounds, run a function on the resulting map. Returns the last item checked, -1 if none were found
+func (m *MapMap) ConsumeRange(lowerbound, upperbound int64, consumerFunc func(int64, map[ItemID]*QueueItem)) int64 {
+	var lastItem int64 = -1
+	upperBucket := m.CalculateBucket(upperbound)
+	lowerBucket := m.CalculateBucket(lowerbound)
+	for i := lowerBucket; i <= upperBucket; i += m.Interval {
 		// Calculate the bucket to get
-		bkey := m.calculateBucket(i)
-		consumerFunc(m.Map[bkey])
+		bkey := m.CalculateBucket(i)
+		if _, exists := m.Map[bkey]; exists {
+			consumerFunc(bkey, m.Map[bkey])
+		}
+		lastItem = bkey
 	}
+	return lastItem
 }
 
 // Adds a new item, creating the bucket if needed (thread safe). `bucketer` should reflect the bucket in which you want this item consumed
 func (m *MapMap) AddItem(item *QueueItem, future time.Time) {
-	bucket := m.calculateBucket(future.UnixMilli())
+	bucket := m.CalculateBucket(future.UnixMilli())
 	if _, e := m.Map[bucket]; !e {
 		m.m.Lock()
 		defer m.m.Unlock()
@@ -43,6 +50,6 @@ func (m *MapMap) AddItem(item *QueueItem, future time.Time) {
 }
 
 // Calculates what bucket a bucketer should be in
-func (m *MapMap) calculateBucket(bucketer int64) int64 {
-	return int64(math.Round(float64(bucketer)/float64(m.Interval))) * m.Interval
+func (m *MapMap) CalculateBucket(bucketer int64) int64 {
+	return int64(math.Floor(float64(bucketer)/float64(m.Interval))) * m.Interval
 }

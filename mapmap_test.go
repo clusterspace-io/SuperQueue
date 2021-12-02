@@ -26,7 +26,7 @@ func TestMapMapScale(t *testing.T) {
 
 	fmt.Println("\nTesting range consumption of", MAPMAP_RANGE, "items")
 	s = time.Now()
-	m.ConsumeRange(time.Now(), time.Now().Add(time.Duration(MAPMAP_RANGE)*time.Millisecond), func(mi map[ItemID]*QueueItem) {
+	m.ConsumeRange(time.Now().UnixMilli(), time.Now().Add(time.Duration(MAPMAP_RANGE)*time.Millisecond).UnixMilli(), func(bkey int64, mi map[ItemID]*QueueItem) {
 		for _, _ = range mi {
 			// spin
 		}
