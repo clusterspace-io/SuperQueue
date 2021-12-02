@@ -11,7 +11,7 @@ var (
 	MAPMAP_SCALE    = 10000000
 	MAPMAP_RANGE    = 1000000
 	MAPMAP_INTERVAL = 5
-	CONSUME_SEC     = 10
+	CONSUME_SEC     = 5
 )
 
 func TestMapMapScale(t *testing.T) {
@@ -54,7 +54,8 @@ func TestMapMapScale(t *testing.T) {
 	time.Sleep(time.Duration(CONSUME_SEC) * time.Second)
 	close(endChan)
 	fmt.Println("Done consuming", agg, "buckets")
-	if agg != 2000 {
-		HandleTestError(t, fmt.Errorf("Did not consume the expected 2000 buckets!"))
+	// Tick might have us do one over
+	if agg > int64(CONSUME_SEC)*1000/int64(MAPMAP_INTERVAL)+1 || agg < int64(CONSUME_SEC)*1000/int64(MAPMAP_INTERVAL)-1 {
+		HandleTestError(t, fmt.Errorf("Did not consume the expected buckets! Got %d and expected %d", agg, int64(CONSUME_SEC)*1000/int64(MAPMAP_INTERVAL)))
 	}
 }

@@ -24,14 +24,14 @@ func (m *MapMapConsumer) Start() {
 	go func() {
 		for {
 			select {
+			case <-m.endChan:
+				// Exit
+				return
 			case n := <-m.ticker.C:
 				nowTime := n.UnixMilli()
 				// fmt.Println("ticking", m.lastConsume, nowTime, m.MapMap.CalculateBucket(m.lastConsume), m.MapMap.CalculateBucket(nowTime))
 				m.MapMap.ConsumeRange(m.lastConsume, nowTime, m.ConsumerFunc)
 				m.lastConsume = nowTime + m.MapMap.Interval
-			case <-m.endChan:
-				// Exit
-				return
 			}
 		}
 	}()
