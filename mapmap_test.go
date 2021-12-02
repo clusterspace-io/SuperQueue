@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -10,6 +11,7 @@ var (
 	MAPMAP_SCALE    = 10000000
 	MAPMAP_RANGE    = 1000000
 	MAPMAP_INTERVAL = 5
+	CONSUME_SEC     = 10
 )
 
 func TestMapMapScale(t *testing.T) {
@@ -33,4 +35,26 @@ func TestMapMapScale(t *testing.T) {
 	})
 
 	fmt.Println("consumed in", time.Since(s))
+
+	fmt.Println("\nCreating consumer and running for", CONSUME_SEC, "seconds")
+	endChan := make(chan struct{})
+	var Dc *MapMapConsumer
+	var agg int64 = 0
+	Dc = &MapMapConsumer{
+		ticker:      *time.NewTicker(time.Duration(m.Interval) * time.Millisecond),
+		endChan:     endChan,
+		lastConsume: time.Now().UnixMilli(),
+		MapMap:      m,
+		ConsumerFunc: func(bucket int64, mi map[ItemID]*QueueItem) {
+			atomic.AddInt64(&agg, 1)
+		},
+	}
+	Dc.Start()
+
+	time.Sleep(time.Duration(CONSUME_SEC) * time.Second)
+	close(endChan)
+	fmt.Println("Done consuming", agg, "buckets")
+	if agg != 2000 {
+		HandleTestError(t, fmt.Errorf("Did not consume the expected 2000 buckets!"))
+	}
 }
