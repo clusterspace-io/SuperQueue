@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -27,7 +26,7 @@ func (m *MapMapConsumer) Start() {
 			select {
 			case n := <-m.ticker.C:
 				nowTime := n.UnixMilli()
-				fmt.Println("ticking", m.lastConsume, nowTime, m.MapMap.CalculateBucket(m.lastConsume), m.MapMap.CalculateBucket(nowTime))
+				// fmt.Println("ticking", m.lastConsume, nowTime, m.MapMap.CalculateBucket(m.lastConsume), m.MapMap.CalculateBucket(nowTime))
 				m.MapMap.ConsumeRange(m.lastConsume, nowTime, m.ConsumerFunc)
 				m.lastConsume = nowTime + m.MapMap.Interval
 			case <-m.endChan:

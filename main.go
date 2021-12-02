@@ -16,7 +16,7 @@ var (
 
 func main() {
 	logger.Info("Starting SuperQueue")
-	DelayMapMap = NewMapMap(1000)
+	DelayMapMap = NewMapMap(5)
 	endChan := make(chan struct{})
 	DelayConsumer = &MapMapConsumer{
 		ticker:      *time.NewTicker(time.Duration(DelayMapMap.Interval) * time.Millisecond),
@@ -31,7 +31,7 @@ func main() {
 	for i := 0; i < 10; i++ {
 		DelayMapMap.AddItem(&QueueItem{
 			ID: "test",
-		}, time.Now().Add(time.Duration(i+2)*time.Second))
+		}, time.Now().Add(time.Duration(i+2)*time.Second).UnixMilli())
 	}
 	time.Sleep(time.Second * 100)
 }

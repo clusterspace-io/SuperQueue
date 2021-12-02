@@ -20,7 +20,7 @@ func TestMapMapScale(t *testing.T) {
 	for i := 0; i < MAPMAP_SCALE; i++ {
 		m.AddItem(&QueueItem{
 			ID: ItemID(fmt.Sprintf("%d", i)),
-		}, time.Now().Add(time.Duration(i)*time.Millisecond))
+		}, time.Now().Add(time.Duration(i)*time.Millisecond).UnixMilli())
 	}
 	fmt.Println("MapMap filled", MAPMAP_SCALE, "items in", time.Since(s))
 
