@@ -8,7 +8,7 @@ type MapMapConsumer struct {
 	ticker       time.Ticker
 	endChan      chan struct{}
 	MapMap       *MapMap
-	ConsumerFunc func(int64, map[ItemID]*QueueItem)
+	ConsumerFunc func(int64, map[string]*QueueItem)
 	lastConsume  int64
 }
 

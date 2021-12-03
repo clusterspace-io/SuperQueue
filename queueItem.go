@@ -1,15 +1,14 @@
 package main
 
-import "time"
+import (
+	"context"
+	"fmt"
+	"time"
 
-type ItemID string
+	"github.com/georgysavva/scany/pgxscan"
+)
 
 type QueueItem struct {
-	ID   ItemID
-	Body []byte
-}
-
-type QueueItemDB struct {
 	ID                string
 	Payload           []byte
 	Bucket            string
@@ -27,11 +26,11 @@ type QueueItemStateDB struct {
 	// Item state, ENUM ('queued', 'in-flight', 'delivered', 'discarded', 'delayed', 'timedout', 'nacked', 'discarded', 'expired')
 	State     string
 	CreatedAt time.Time
-	DelayTo   time.Time
+	DelayTo   *time.Time
 	Attempts  int
 	// The error type, ENUM ('max retries exceeded', 'unknown', 'expired', 'nack')
-	Error        string
-	ErrorMessage string
+	Error        *string
+	ErrorMessage *string
 }
 
 // Adds a new queue item to the DB and immediately queues it
@@ -90,8 +89,12 @@ func (i *QueueItem) RequeueItem() {
 // -----------------------------------------------------------------------------
 
 func (i *QueueItem) addItemToItemsTable() error {
-
-	return nil
+	res, err := PGPool.Exec(context.Background(), `
+		INSERT INTO items (id, payload, bucket, created_at, expire_at, in_flight_timeout, backoff_min, backoff_multiplier)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`, i.ID, i.Payload, i.Bucket, i.CreatedAt, i.ExpireAt, i.InFlightTimeout, i.BackoffMin, i.BackoffMultiplier)
+	fmt.Println("inserted", res.RowsAffected())
+	return err
 }
 
 func (i *QueueItem) discardItem() error {
@@ -99,10 +102,36 @@ func (i *QueueItem) discardItem() error {
 	return nil
 }
 
-func debugReadItem(itemID ItemID) *QueueItemDB {
-
+func debugReadItem(itemID string) (*QueueItem, error) {
+	var item QueueItem
+	rows, err := PGPool.Query(context.Background(), `
+		SELECT *
+		FROM items
+		WHERE id = $1
+	`, itemID)
+	if err != nil {
+		return nil, err
+	}
+	err = pgxscan.ScanOne(&item, rows)
+	if err != nil {
+		return nil, err
+	}
+	return &item, nil
 }
 
-func debugReadItemState(itemID ItemID) *QueueItemStateDB {
-
+func debugReadItemState(itemID string) (*QueueItemStateDB, error) {
+	var item QueueItemStateDB
+	rows, err := PGPool.Query(context.Background(), `
+		SELECT *
+		FROM item_states
+		WHERE id = $1
+	`, itemID)
+	if err != nil {
+		return nil, err
+	}
+	err = pgxscan.ScanOne(&item, rows)
+	if err != nil {
+		return nil, err
+	}
+	return &item, nil
 }

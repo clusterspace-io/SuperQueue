@@ -20,15 +20,16 @@ func TestMapMapScale(t *testing.T) {
 	fmt.Println("Adding", MAPMAP_SCALE, "items...")
 	s := time.Now()
 	for i := 0; i < MAPMAP_SCALE; i++ {
+		itemID := fmt.Sprintf("%d", i)
 		m.AddItem(&QueueItem{
-			ID: ItemID(fmt.Sprintf("%d", i)),
+			ID: itemID,
 		}, time.Now().Add(time.Duration(i)*time.Millisecond).UnixMilli())
 	}
 	fmt.Println("MapMap filled", MAPMAP_SCALE, "items in", time.Since(s))
 
 	fmt.Println("\nTesting range consumption of", MAPMAP_RANGE, "items")
 	s = time.Now()
-	m.ConsumeRange(time.Now().UnixMilli(), time.Now().Add(time.Duration(MAPMAP_RANGE)*time.Millisecond).UnixMilli(), func(bkey int64, mi map[ItemID]*QueueItem) {
+	m.ConsumeRange(time.Now().UnixMilli(), time.Now().Add(time.Duration(MAPMAP_RANGE)*time.Millisecond).UnixMilli(), func(bkey int64, mi map[string]*QueueItem) {
 		for _, _ = range mi {
 			// spin
 		}
@@ -45,7 +46,7 @@ func TestMapMapScale(t *testing.T) {
 		endChan:     endChan,
 		lastConsume: time.Now().UnixMilli(),
 		MapMap:      m,
-		ConsumerFunc: func(bucket int64, mi map[ItemID]*QueueItem) {
+		ConsumerFunc: func(bucket int64, mi map[string]*QueueItem) {
 			atomic.AddInt64(&agg, 1)
 		},
 	}

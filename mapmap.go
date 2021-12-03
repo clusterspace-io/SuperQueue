@@ -1,14 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"math"
 	"sync"
-	"time"
 )
 
 type MapMap struct {
-	Map map[int64]map[ItemID]*QueueItem
+	Map map[int64]map[string]*QueueItem
 
 	m sync.Mutex
 
@@ -19,12 +17,12 @@ type MapMap struct {
 func NewMapMap(intervalMS int64) *MapMap {
 	return &MapMap{
 		Interval: intervalMS,
-		Map:      map[int64]map[ItemID]*QueueItem{},
+		Map:      map[int64]map[string]*QueueItem{},
 	}
 }
 
 // For every bucket between the lower and upper (inclusive) bounds, run a function on the resulting map. Returns the last item checked, -1 if none were found
-func (m *MapMap) ConsumeRange(lowerbound, upperbound int64, consumerFunc func(int64, map[ItemID]*QueueItem)) int64 {
+func (m *MapMap) ConsumeRange(lowerbound, upperbound int64, consumerFunc func(int64, map[string]*QueueItem)) int64 {
 	var lastItem int64 = -1
 	upperBucket := m.CalculateBucket(upperbound)
 	lowerBucket := m.CalculateBucket(lowerbound)
@@ -42,11 +40,10 @@ func (m *MapMap) ConsumeRange(lowerbound, upperbound int64, consumerFunc func(in
 // Adds a new item, creating the bucket if needed (thread safe). `bucketer` should reflect the bucket in which you want this item consumed
 func (m *MapMap) AddItem(item *QueueItem, executeTime int64) {
 	bucket := m.CalculateBucket(executeTime)
-	fmt.Println("Adding item to bucket", bucket, "currently", m.CalculateBucket(time.Now().UnixMilli()))
 	if _, e := m.Map[bucket]; !e {
 		m.m.Lock()
 		defer m.m.Unlock()
-		m.Map[bucket] = map[ItemID]*QueueItem{}
+		m.Map[bucket] = map[string]*QueueItem{}
 	}
 	m.Map[bucket][item.ID] = item
 }

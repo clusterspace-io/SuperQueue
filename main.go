@@ -30,8 +30,11 @@ func main() {
 	logger.Info("Done setting up db")
 
 	for i := 0; i < 10; i++ {
+		itemID := fmt.Sprintf("test-%d", i)
+		p := []byte("hey")
 		SQ.Enqueue(&QueueItem{
-			ID: "test",
+			ID:      itemID,
+			Payload: p,
 		}, int64(i*1000))
 		fmt.Println("Currnet time", time.Now().UnixMilli())
 	}
