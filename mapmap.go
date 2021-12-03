@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"math"
 	"sync"
+	"time"
 )
 
 type MapMap struct {
@@ -40,6 +42,7 @@ func (m *MapMap) ConsumeRange(lowerbound, upperbound int64, consumerFunc func(in
 // Adds a new item, creating the bucket if needed (thread safe). `bucketer` should reflect the bucket in which you want this item consumed
 func (m *MapMap) AddItem(item *QueueItem, executeTime int64) {
 	bucket := m.CalculateBucket(executeTime)
+	fmt.Println("Adding item to bucket", bucket, "currently", m.CalculateBucket(time.Now().UnixMilli()))
 	if _, e := m.Map[bucket]; !e {
 		m.m.Lock()
 		defer m.m.Unlock()

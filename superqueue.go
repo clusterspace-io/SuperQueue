@@ -1,6 +1,7 @@
 package main
 
 import (
+	"SuperQueue/logger"
 	"time"
 )
 
@@ -27,6 +28,7 @@ func NewSuperQueue(bucketMS, memoryQueueLen int64) *SuperQueue {
 		lastConsume: time.Now().UnixMilli(),
 		MapMap:      dmm,
 		ConsumerFunc: func(bucket int64, m map[ItemID]*QueueItem) {
+			logger.Debug("Consuming bucket ", bucket)
 			for _, i := range m {
 				// Move on disk
 
@@ -41,27 +43,13 @@ func NewSuperQueue(bucketMS, memoryQueueLen int64) *SuperQueue {
 }
 
 func (sq *SuperQueue) Enqueue(item *QueueItem, delayMS int64) {
+	logger.Debug("Enqueueing item ", item.ID)
 	if delayMS > 0 {
 		// If delayed, put in mapmap
-		// TODO: Add to disk
+		// TODO: Add to DB
 		sq.DelayMapMap.AddItem(item, time.Now().UnixMilli()+delayMS)
 	} else {
 		// Otherwise put it right in outbox
-		// TODO: Add to disk
+		// TODO: Add to DB
 	}
-}
-
-// Creates a new item in DB
-func (sq *SuperQueue) addItemDB(item *QueueItem) error {
-
-}
-
-// Updates an item in DB
-func (sq *SuperQueue) updateItemDB(item *QueueItem) error {
-
-}
-
-// Deletes an item in DB
-func (sq *SuperQueue) deleteItemDB(item *QueueItem) error {
-
 }
