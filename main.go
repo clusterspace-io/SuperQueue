@@ -11,7 +11,7 @@ var (
 
 func main() {
 	logger.Info("Starting SuperQueue")
-	SQ = NewSuperQueue()
+	SQ = NewSuperQueue(5, 2<<20)
 	SQ.DelayConsumer.Start()
 	for i := 0; i < 10; i++ {
 		SQ.Enqueue(&QueueItem{
