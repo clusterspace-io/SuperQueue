@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/georgysavva/scany/pgxscan"
-	"github.com/segmentio/ksuid"
 )
 
 type QueueItem struct {
@@ -21,12 +20,13 @@ type QueueItem struct {
 
 	// Not stored in the DB
 	Attempts int
+	Version  int
 }
 
 type QueueItemStateDB struct {
 	ID string
 	// SERIAL monotomically incrementing integer
-	Generation string
+	Version int
 	// Item state, ENUM ('queued', 'in-flight', 'delivered', 'discarded', 'delayed', 'timedout', 'nacked', 'discarded', 'expired')
 	State     string
 	CreatedAt time.Time
@@ -108,10 +108,11 @@ func (i *QueueItem) addItemToItemsTable() error {
 }
 
 func (i *QueueItem) addItemState(state string, createdAt time.Time, attempts int, delayTo *time.Time, itemError, itemErrorMessage *string) error {
+	i.Version++
 	_, err := PGPool.Exec(context.Background(), `
-		INSERT INTO item_states (id, generation, state, created_at, attempts, delay_to, error, error_message)
+		INSERT INTO item_states (id, version, state, created_at, attempts, delay_to, error, error_message)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-	`, i.ID, ksuid.New(), state, createdAt, attempts, delayTo, itemError, itemErrorMessage)
+	`, i.ID, i.Version, state, createdAt, attempts, delayTo, itemError, itemErrorMessage)
 	return err
 }
 

@@ -16,7 +16,7 @@ CREATE TYPE delivery_error AS ENUM ('max retries exceeded', 'unknown', 'expired'
 
 CREATE TABLE IF NOT EXISTS item_states (
   id TEXT NOT NULL,
-  generation TEXT NOT NULL,
+  version INT NOT NULL,
   state item_state NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   attempts INT NOT NULL,

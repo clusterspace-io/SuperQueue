@@ -41,6 +41,7 @@ func main() {
 			InFlightTimeoutSeconds: 30,
 			BackoffMinMS:           300,
 			BackoffMultiplier:      2,
+			Version:                0,
 		}, int64((i+1)*1000))
 	}
 	time.Sleep(time.Second * 100)
