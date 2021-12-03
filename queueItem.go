@@ -1,10 +1,37 @@
 package main
 
+import "time"
+
 type ItemID string
 
 type QueueItem struct {
 	ID   ItemID
 	Body []byte
+}
+
+type QueueItemDB struct {
+	ID                string
+	Payload           []byte
+	Bucket            string
+	CreatedAt         time.Time
+	ExpireAt          time.Time
+	InFlightTimeout   int
+	BackoffMin        int
+	BackoffMultiplier float64
+}
+
+type QueueItemStateDB struct {
+	ID string
+	// SERIAL monotomically incrementing integer
+	Version int
+	// Item state, ENUM ('queued', 'in-flight', 'delivered', 'discarded', 'delayed', 'timedout', 'nacked', 'discarded', 'expired')
+	State     string
+	CreatedAt time.Time
+	DelayTo   time.Time
+	Attempts  int
+	// The error type, ENUM ('max retries exceeded', 'unknown', 'expired', 'nack')
+	Error        string
+	ErrorMessage string
 }
 
 // Adds a new queue item to the DB and immediately queues it
@@ -70,4 +97,12 @@ func (i *QueueItem) addItemToItemsTable() error {
 func (i *QueueItem) discardItem() error {
 
 	return nil
+}
+
+func debugReadItem(itemID ItemID) *QueueItemDB {
+
+}
+
+func debugReadItemState(itemID ItemID) *QueueItemStateDB {
+
 }
