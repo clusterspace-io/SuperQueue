@@ -30,13 +30,18 @@ func main() {
 	logger.Info("Done setting up db")
 
 	for i := 0; i < 10; i++ {
-		itemID := fmt.Sprintf("test-%d", i)
+		itemID := fmt.Sprintf("test-%d", time.Now().UnixNano())
 		p := []byte("hey")
 		SQ.Enqueue(&QueueItem{
-			ID:      itemID,
-			Payload: p,
-		}, int64(i*1000))
-		fmt.Println("Currnet time", time.Now().UnixMilli())
+			ID:                     itemID,
+			Payload:                p,
+			CreatedAt:              time.Now(),
+			Bucket:                 "fake-bucket",
+			ExpireAt:               time.Now().Add(4 * time.Hour),
+			InFlightTimeoutSeconds: 30,
+			BackoffMinMS:           300,
+			BackoffMultiplier:      2,
+		}, int64((i+1)*1000))
 	}
 	time.Sleep(time.Second * 100)
 }

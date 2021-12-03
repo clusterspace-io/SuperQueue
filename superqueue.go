@@ -30,10 +30,8 @@ func NewSuperQueue(bucketMS, memoryQueueLen int64) *SuperQueue {
 		ConsumerFunc: func(bucket int64, m map[string]*QueueItem) {
 			logger.Debug("Consuming bucket ", bucket)
 			for _, i := range m {
-				// Move on disk
-
-				// Put in outbox
-				q.Outbox.Add(i)
+				logger.Debug("Found item: ", i)
+				i.RequeueItem(SQ)
 			}
 		},
 	}
@@ -42,18 +40,35 @@ func NewSuperQueue(bucketMS, memoryQueueLen int64) *SuperQueue {
 	return q
 }
 
-func (sq *SuperQueue) Enqueue(item *QueueItem, delayMS int64) {
+func (sq *SuperQueue) Enqueue(item *QueueItem, delayMS int64) error {
 	logger.Debug("Enqueueing item ", item.ID)
+	err := item.addItemToItemsTable()
+	if err != nil {
+		logger.Error("Error inserting item into table on Enqueue:")
+		logger.Error(err)
+		return err
+	}
+
 	if delayMS > 0 {
 		// If delayed, put in mapmap
-		// TODO: Add to DB
-		err := item.addItemToItemsTable()
+		delayTime := time.Now().Add(time.Millisecond * time.Duration(delayMS))
+		err = item.addItemState("delayed", item.CreatedAt, 0, &delayTime, nil, nil)
 		if err != nil {
-			panic(err)
+			logger.Error("Error inserting delayed item state into table on Enqueue:")
+			logger.Error(err)
+			return err
 		}
-		sq.DelayMapMap.AddItem(item, time.Now().UnixMilli()+delayMS)
+		item.DelayEnqueueItem(sq, delayTime)
 	} else {
 		// Otherwise put it right in outbox
-		// TODO: Add to DB
+		err = item.addItemState("queued", item.CreatedAt, 0, nil, nil, nil)
+		if err != nil {
+			logger.Error("Error inserting item state into table on Enqueue:")
+			logger.Error(err)
+			return err
+		}
+		item.EnqueueItem(sq)
 	}
+
+	return nil
 }

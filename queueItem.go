@@ -1,28 +1,32 @@
 package main
 
 import (
+	"SuperQueue/logger"
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/georgysavva/scany/pgxscan"
+	"github.com/segmentio/ksuid"
 )
 
 type QueueItem struct {
-	ID                string
-	Payload           []byte
-	Bucket            string
-	CreatedAt         time.Time
-	ExpireAt          time.Time
-	InFlightTimeout   int
-	BackoffMin        int
-	BackoffMultiplier float64
+	ID                     string
+	Payload                []byte
+	Bucket                 string
+	CreatedAt              time.Time
+	ExpireAt               time.Time
+	InFlightTimeoutSeconds int
+	BackoffMinMS           int
+	BackoffMultiplier      float64
+
+	// Not stored in the DB
+	Attempts int
 }
 
 type QueueItemStateDB struct {
 	ID string
 	// SERIAL monotomically incrementing integer
-	Version int
+	Generation string
 	// Item state, ENUM ('queued', 'in-flight', 'delivered', 'discarded', 'delayed', 'timedout', 'nacked', 'discarded', 'expired')
 	State     string
 	CreatedAt time.Time
@@ -34,16 +38,30 @@ type QueueItemStateDB struct {
 }
 
 // Adds a new queue item to the DB and immediately queues it
-func (i *QueueItem) EnqueueItem() error {
-	// Add item to DB
-	// Add a newly created queue item to the queue
+func (i *QueueItem) EnqueueItem(sq *SuperQueue) error {
+	// Add item to the queue
+	sq.Outbox.Add(i)
 	return nil
 }
 
+// Moving from `delayed`, `nacked`, or `timedout` to `queued` (anything in the delayed mapmap)
+func (i *QueueItem) RequeueItem(sq *SuperQueue) error {
+	// Write queued state to DB
+	err := i.addItemState("queued", i.CreatedAt, i.Attempts, nil, nil, nil)
+	if err != nil {
+		logger.Error("Error adding item state during requeue:")
+		logger.Error(err)
+		return err
+	}
+	// Remove item from delayed mapmap
+	return i.EnqueueItem(sq)
+}
+
 // Adds a new queue item to the DB and delays it
-func (i *QueueItem) DelayEnqueueItem(delayMS int64) error {
+func (i *QueueItem) DelayEnqueueItem(sq *SuperQueue, delayTime time.Time) error {
 	// Add item to DB as delayed
 	// Add item to delay mapmap
+	sq.DelayMapMap.AddItem(i, delayTime.UnixMilli())
 	return nil
 }
 
@@ -77,23 +95,23 @@ func (i *QueueItem) TimeoutItem() error {
 	return nil
 }
 
-// Moving from `delayed`, `nacked`, or `timedout` to `queued` (anything in the delayed mapmap)
-func (i *QueueItem) RequeueItem() {
-	// Write queued to DB
-	// Remove item from delayed mapmap
-	// Add item to queue
-}
-
 // -----------------------------------------------------------------------------
 // Internal functions
 // -----------------------------------------------------------------------------
 
 func (i *QueueItem) addItemToItemsTable() error {
-	res, err := PGPool.Exec(context.Background(), `
+	_, err := PGPool.Exec(context.Background(), `
 		INSERT INTO items (id, payload, bucket, created_at, expire_at, in_flight_timeout, backoff_min, backoff_multiplier)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-	`, i.ID, i.Payload, i.Bucket, i.CreatedAt, i.ExpireAt, i.InFlightTimeout, i.BackoffMin, i.BackoffMultiplier)
-	fmt.Println("inserted", res.RowsAffected())
+	`, i.ID, i.Payload, i.Bucket, i.CreatedAt, i.ExpireAt, i.InFlightTimeoutSeconds, i.BackoffMinMS, i.BackoffMultiplier)
+	return err
+}
+
+func (i *QueueItem) addItemState(state string, createdAt time.Time, attempts int, delayTo *time.Time, itemError, itemErrorMessage *string) error {
+	_, err := PGPool.Exec(context.Background(), `
+		INSERT INTO item_states (id, generation, state, created_at, attempts, delay_to, error, error_message)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`, i.ID, ksuid.New(), state, createdAt, attempts, delayTo, itemError, itemErrorMessage)
 	return err
 }
 

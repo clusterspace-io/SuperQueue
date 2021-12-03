@@ -71,14 +71,14 @@ func CreateTables() error {
 	statement4 := `
 	CREATE TABLE IF NOT EXISTS item_states (
 		id TEXT NOT NULL,
-		version SERIAL NOT NULL,
+		generation TEXT NOT NULL,
 		state item_state NOT NULL,
 		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 		attempts INT NOT NULL,
 		delay_to TIMESTAMPTZ, -- for either delayed messages, nacked, or timed out retries
 		error delivery_error,
 		error_message TEXT,
-		PRIMARY KEY(id, version)
+		PRIMARY KEY(id, generation)
 	);
 	`
 	_, err = PGPool.Query(context.Background(), statement4)
