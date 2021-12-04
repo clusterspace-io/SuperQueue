@@ -11,7 +11,7 @@ type SuperQueue struct {
 	InFlightItems   *map[string]*QueueItem
 	DelayConsumer   *MapMapConsumer
 	Outbox          *Outbox
-	InFlightMapLock sync.Mutex
+	InFlightMapLock sync.RWMutex
 }
 
 func NewSuperQueue(bucketMS, memoryQueueLen int64) *SuperQueue {
@@ -19,7 +19,7 @@ func NewSuperQueue(bucketMS, memoryQueueLen int64) *SuperQueue {
 	q := &SuperQueue{
 		DelayMapMap:     dmm, // 5ms default
 		InFlightItems:   &map[string]*QueueItem{},
-		InFlightMapLock: sync.Mutex{},
+		InFlightMapLock: sync.RWMutex{},
 	}
 
 	q.Outbox = NewOutbox(q, memoryQueueLen)
@@ -38,7 +38,9 @@ func NewSuperQueue(bucketMS, memoryQueueLen int64) *SuperQueue {
 				i.ReEnqueueItem(SQ)
 			}
 			// logger.Debug("Deleting bucket ", bucket)
+			dmm.m.Lock()
 			delete(dmm.Map, bucket)
+			dmm.m.Unlock()
 		},
 	}
 	q.DelayConsumer = dc

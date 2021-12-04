@@ -4,8 +4,6 @@ import (
 	"SuperQueue/logger"
 	"os"
 	"time"
-
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -13,7 +11,7 @@ var (
 )
 
 func main() {
-	logger.Logger.Logger.SetLevel(logrus.DebugLevel)
+	// logger.Logger.Logger.SetLevel(logrus.DebugLevel)
 	logger.Info("Starting SuperQueue")
 	SQ = NewSuperQueue(5, 2<<20)
 	go func() {

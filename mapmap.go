@@ -8,7 +8,7 @@ import (
 type MapMap struct {
 	Map map[int64]map[string]*QueueItem
 
-	m sync.Mutex
+	m sync.RWMutex
 
 	// The bucketing interval
 	Interval int64
@@ -18,6 +18,7 @@ func NewMapMap(intervalMS int64) *MapMap {
 	return &MapMap{
 		Interval: intervalMS,
 		Map:      map[int64]map[string]*QueueItem{},
+		m:        sync.RWMutex{},
 	}
 }
 
@@ -29,9 +30,11 @@ func (m *MapMap) ConsumeRange(lowerbound, upperbound int64, consumerFunc func(in
 	for i := lowerBucket; i <= upperBucket; i += m.Interval {
 		// Calculate the bucket to get
 		bkey := m.CalculateBucket(i)
+		m.m.Lock()
 		if _, exists := m.Map[bkey]; exists {
-			consumerFunc(bkey, m.Map[bkey])
+			go consumerFunc(bkey, m.Map[bkey])
 		}
+		m.m.Unlock()
 		lastItem = bkey
 	}
 	return lastItem

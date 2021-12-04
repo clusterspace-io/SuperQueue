@@ -123,7 +123,9 @@ func Post_AckRecord(c echo.Context) error {
 		return c.String(400, "No record ID given")
 	}
 
+	SQ.InFlightMapLock.Lock()
 	item, exists := (*SQ.InFlightItems)[recordID]
+	SQ.InFlightMapLock.Unlock()
 	// Check if record exists
 	if !exists {
 		return c.String(404, "Record not found")

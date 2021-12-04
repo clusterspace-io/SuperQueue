@@ -60,6 +60,8 @@ func (i *QueueItem) ReEnqueueItem(sq *SuperQueue) error {
 			return err
 		}
 		i.InFlight = false
+		sq.InFlightMapLock.Lock()
+		defer sq.InFlightMapLock.Unlock()
 		delete(*sq.InFlightItems, i.ID)
 	}
 	// Write queued state to DB
