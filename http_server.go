@@ -68,6 +68,14 @@ func Post_Record(c echo.Context) error {
 
 	itemID := ksuid.New().String()
 
+	var delayTime *time.Time
+
+	if body.DelayMS > 1000 {
+		// nil trick
+		dt := time.Now().Add(time.Millisecond * time.Duration(body.DelayMS))
+		delayTime = &dt
+	}
+
 	SQ.Enqueue(&QueueItem{
 		ID:                     itemID,
 		Payload:                []byte(body.Payload),
@@ -78,10 +86,11 @@ func Post_Record(c echo.Context) error {
 		BackoffMinMS:           300,
 		BackoffMultiplier:      2,
 		Version:                0,
-	}, int64(body.DelayMS))
+	}, delayTime)
 
 	return c.JSON(200, PostRecordResponse{
-		ID: itemID,
+		ID:        itemID,
+		EnqueueAt: delayTime,
 	})
 }
 

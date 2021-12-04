@@ -40,7 +40,7 @@ func NewSuperQueue(bucketMS, memoryQueueLen int64) *SuperQueue {
 	return q
 }
 
-func (sq *SuperQueue) Enqueue(item *QueueItem, delayMS int64) error {
+func (sq *SuperQueue) Enqueue(item *QueueItem, delayTime *time.Time) error {
 	logger.Debug("Enqueueing item ", item.ID)
 	err := item.addItemToItemsTable()
 	if err != nil {
@@ -49,16 +49,15 @@ func (sq *SuperQueue) Enqueue(item *QueueItem, delayMS int64) error {
 		return err
 	}
 
-	if delayMS > 0 {
+	if delayTime != nil {
 		// If delayed, put in mapmap
-		delayTime := time.Now().Add(time.Millisecond * time.Duration(delayMS))
-		err = item.addItemState("delayed", item.CreatedAt, 0, &delayTime, nil, nil)
+		err = item.addItemState("delayed", item.CreatedAt, 0, delayTime, nil, nil)
 		if err != nil {
 			logger.Error("Error inserting delayed item state into table on Enqueue:")
 			logger.Error(err)
 			return err
 		}
-		item.DelayEnqueueItem(sq, delayTime)
+		item.DelayEnqueueItem(sq, *delayTime)
 	} else {
 		// Otherwise put it right in outbox
 		err = item.addItemState("queued", item.CreatedAt, 0, nil, nil, nil)
