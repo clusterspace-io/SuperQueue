@@ -19,4 +19,5 @@ export default function () {
   if (resp.status > 299 || resp.status < 200) {
     console.log('Got state code', resp.status, 'with test', resp.status_text, 'post')
   }
+  sleep(0.5)
 }
