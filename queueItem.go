@@ -112,7 +112,7 @@ func (i *QueueItem) addItemState(state string, createdAt time.Time, attempts int
 	_, err := PGPool.Exec(context.Background(), `
 		INSERT INTO item_states (id, version, state, created_at, attempts, delay_to, error, error_message)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-	`, i.ID, i.Version, state, createdAt, attempts, delayTo, itemError, itemErrorMessage)
+	`, i.ID, i.Version, state, time.Now(), attempts, delayTo, itemError, itemErrorMessage)
 	return err
 }
 

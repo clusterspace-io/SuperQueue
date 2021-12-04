@@ -16,6 +16,9 @@ func main() {
 	logger.Logger.Logger.SetLevel(logrus.DebugLevel)
 	logger.Info("Starting SuperQueue")
 	SQ = NewSuperQueue(5, 2<<20)
+	go func() {
+		StartHTTPServer()
+	}()
 	SQ.DelayConsumer.Start()
 
 	logger.Info("Setting up DB")
@@ -45,4 +48,5 @@ func main() {
 		}, int64((i+1)*1000))
 	}
 	time.Sleep(time.Second * 100)
+	Server.Echo.Close()
 }
