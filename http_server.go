@@ -50,6 +50,7 @@ func (s *HTTPServer) registerRoutes() {
 	s.Echo.GET("/record", Get_Record)
 
 	s.Echo.POST("/ack/:recordID", Post_AckRecord)
+	s.Echo.POST("/nack/:recordID", Post_NackRecord)
 }
 
 func ValidateRequest(c echo.Context, s interface{}) error {
@@ -127,6 +128,27 @@ func Post_AckRecord(c echo.Context) error {
 	// Ack the record
 	err := item.AckItem(SQ)
 	if err != nil {
+		return c.String(500, "Failed to ack record")
+	}
+	return c.String(200, "")
+}
+
+func Post_NackRecord(c echo.Context) error {
+	recordID := c.Param("recordID")
+	if recordID == "" {
+		return c.String(400, "No record ID given")
+	}
+
+	item, exists := (*SQ.InFlightItems)[recordID]
+	// Check if record exists
+	if !exists {
+		return c.String(404, "Record not found")
+	}
+
+	// Ack the record
+	err := item.NackItem(SQ)
+	if err != nil {
+		logger.Error(err)
 		return c.String(500, "Failed to ack record")
 	}
 	return c.String(200, "")

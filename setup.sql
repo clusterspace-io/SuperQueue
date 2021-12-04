@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS items (
 
 CREATE TYPE item_state AS ENUM ('queued', 'in-flight', 'acked', 'discarded', 'delayed', 'timedout', 'nacked', 'expired');
 
-CREATE TYPE delivery_error AS ENUM ('max retries exceeded', 'unknown', 'timedout', 'expired', 'nack');
+CREATE TYPE delivery_error AS ENUM ('max retries exceeded', 'unknown', 'timedout', 'expired', 'nacked');
 
 CREATE TABLE IF NOT EXISTS item_states (
   id TEXT NOT NULL,

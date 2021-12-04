@@ -59,7 +59,7 @@ func CreateTables() error {
 	logger.Debug("Created item_state enum")
 
 	statement3 := `
-	CREATE TYPE delivery_error AS ENUM ('max retries exceeded', 'unknown', 'timedout', 'expired', 'nack');
+	CREATE TYPE delivery_error AS ENUM ('max retries exceeded', 'unknown', 'timedout', 'expired', 'nacked');
 	`
 	_, err = PGPool.Query(context.Background(), statement3)
 	if err != nil {

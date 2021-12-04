@@ -97,12 +97,21 @@ func (i *QueueItem) AckItem(sq *SuperQueue) error {
 	return nil
 }
 
-func (i *QueueItem) NackItem() error {
+func (i *QueueItem) NackItem(sq *SuperQueue) error {
 	// Write nack to DB
+	nackMSG := "nacked"
+	err := i.addItemState("nacked", time.Now(), nil, &nackMSG, &nackMSG)
+	if err != nil {
+		return err
+	}
 	// Remove from inflight table
+	delete(*sq.InFlightItems, i.ID)
 	// Remove from old spot in delayed mapmap
-	// Discard if max attempts exceeded
+	sq.DelayMapMap.DeleteItem(i)
+	// TODO: Discard if max attempts exceeded
 	// Add to new spot in delayed mapmap
+	i.InFlight = false
+	i.ReEnqueueItem(sq)
 	return nil
 }
 
