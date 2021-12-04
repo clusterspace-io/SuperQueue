@@ -2,8 +2,8 @@ import http from 'k6/http';
 import { sleep } from 'k6';
 export const options = {
   stages: [
-    { duration: '5s', target: 230 },
-    { duration: '30s', target: 230 },
+    { duration: '5s', target: 100 },
+    { duration: '30s', target: 100 },
     { duration: '5s', target: 0 },
   ],
   teardownTimeout: '10s'
@@ -27,6 +27,7 @@ export default function () {
   try {
     if (resp2.status !== 204) {
       const recordID = JSON.parse(resp2.body).id
+      sleep(0.1);
       // ack
       const resp3 = http.post(`http://localhost:8080/ack/${recordID}`)
       if (resp3.status > 299 || resp3.status < 200) {
