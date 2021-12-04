@@ -27,7 +27,7 @@ export default function () {
   try {
     if (resp2.status !== 204) {
       const recordID = JSON.parse(resp2.body).id
-      // sleep(0.5);
+      sleep(0.5);
       // ack
       const resp3 = http.post(`http://localhost:8080/ack/${recordID}`)
       if (resp3.status > 299 || resp3.status < 200) {
