@@ -15,8 +15,10 @@ type QueueItem struct {
 	CreatedAt              time.Time
 	ExpireAt               time.Time
 	InFlightTimeoutSeconds int
-	BackoffMinMS           int
-	BackoffMultiplier      float64
+	// Used to determine what to do in delaymapmap parsing
+	InFlight          bool
+	BackoffMinMS      int
+	BackoffMultiplier float64
 
 	// Not stored in the DB
 	Attempts int
@@ -44,16 +46,27 @@ func (i *QueueItem) EnqueueItem(sq *SuperQueue) error {
 	return nil
 }
 
-// Moving from `delayed`, `nacked`, or `timedout` to `queued` (anything in the delayed mapmap)
-func (i *QueueItem) RequeueItem(sq *SuperQueue) error {
+// Moving from `delayed`
+func (i *QueueItem) ReEnqueueItem(sq *SuperQueue) error {
+	// If in-flight then mark timedout
+	if i.InFlight {
+		timeoutMSG := "timedout"
+		err := i.addItemState("timedout", time.Now(), nil, &timeoutMSG, &timeoutMSG)
+		if err != nil {
+			logger.Error("Error adding item state during timeout:")
+			logger.Error(err)
+			return err
+		}
+		i.InFlight = false
+		// TODO: Remove from inflight map
+	}
 	// Write queued state to DB
-	err := i.addItemState("queued", i.CreatedAt, i.Attempts, nil, nil, nil)
+	err := i.addItemState("queued", time.Now(), nil, nil, nil)
 	if err != nil {
 		logger.Error("Error adding item state during requeue:")
 		logger.Error(err)
 		return err
 	}
-	// Remove item from delayed mapmap
 	return i.EnqueueItem(sq)
 }
 
@@ -87,14 +100,6 @@ func (i *QueueItem) NackItem() error {
 	return nil
 }
 
-func (i *QueueItem) TimeoutItem() error {
-	// Write timeout to DB
-	// Remove from inflight table
-	// Discard if max attempts exceeded
-	// Move to delayed mapmap
-	return nil
-}
-
 // -----------------------------------------------------------------------------
 // Internal functions
 // -----------------------------------------------------------------------------
@@ -107,12 +112,12 @@ func (i *QueueItem) addItemToItemsTable() error {
 	return err
 }
 
-func (i *QueueItem) addItemState(state string, createdAt time.Time, attempts int, delayTo *time.Time, itemError, itemErrorMessage *string) error {
+func (i *QueueItem) addItemState(state string, createdAt time.Time, delayTo *time.Time, itemError, itemErrorMessage *string) error {
 	i.Version++
 	_, err := PGPool.Exec(context.Background(), `
 		INSERT INTO item_states (id, version, state, created_at, attempts, delay_to, error, error_message)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-	`, i.ID, i.Version, state, time.Now(), attempts, delayTo, itemError, itemErrorMessage)
+	`, i.ID, i.Version, state, createdAt, i.Attempts, delayTo, itemError, itemErrorMessage)
 	return err
 }
 

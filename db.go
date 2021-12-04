@@ -49,7 +49,7 @@ func CreateTables() error {
 	logger.Debug("Created items table")
 
 	statement2 := `
-	CREATE TYPE item_state AS ENUM ('awaiting-queueing', 'queued', 'in-flight', 'delivered', 'failed', 'delayed', 'archiving', 'archived', 'expired');
+	CREATE TYPE item_state AS ENUM ('queued', 'in-flight', 'delivered', 'discarded', 'delayed', 'timedout', 'nacked', 'expired');
 	`
 	_, err = PGPool.Query(context.Background(), statement2)
 	if err != nil {
@@ -59,7 +59,7 @@ func CreateTables() error {
 	logger.Debug("Created item_state enum")
 
 	statement3 := `
-	CREATE TYPE delivery_error AS ENUM ('max retries exceeded', 'unknown', 'expired', 'nack');
+	CREATE TYPE delivery_error AS ENUM ('max retries exceeded', 'unknown', 'timedout', 'expired', 'nack');
 	`
 	_, err = PGPool.Query(context.Background(), statement3)
 	if err != nil {

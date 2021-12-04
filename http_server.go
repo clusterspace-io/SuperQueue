@@ -47,6 +47,7 @@ func StartHTTPServer() {
 
 func (s *HTTPServer) registerRoutes() {
 	s.Echo.POST("/record", Post_Record)
+	s.Echo.GET("/record", Get_Record)
 }
 
 func ValidateRequest(c echo.Context, s interface{}) error {
@@ -94,6 +95,17 @@ func Post_Record(c echo.Context) error {
 	})
 }
 
-// func Get_Record(c echo.Context) error {
-
-// }
+func Get_Record(c echo.Context) error {
+	item, err := SQ.Dequeue()
+	if err != nil {
+		return c.String(500, "Failed to dequeue item")
+	}
+	// Empty
+	if item == nil {
+		return c.String(http.StatusNoContent, "Empty")
+	}
+	return c.JSON(200, map[string]string{
+		"id":      item.ID,
+		"payload": string(item.Payload),
+	})
+}

@@ -2,7 +2,6 @@ package main
 
 import (
 	"SuperQueue/logger"
-	"fmt"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -32,22 +31,8 @@ func main() {
 	}
 	logger.Info("Done setting up db")
 
-	for i := 0; i < 10; i++ {
-		itemID := fmt.Sprintf("test-%d", time.Now().UnixNano())
-		dt := time.Now().Add(time.Millisecond * time.Duration(int64((i+1)*1000)))
-		p := []byte("hey")
-		SQ.Enqueue(&QueueItem{
-			ID:                     itemID,
-			Payload:                p,
-			CreatedAt:              time.Now(),
-			Bucket:                 "fake-bucket",
-			ExpireAt:               time.Now().Add(4 * time.Hour),
-			InFlightTimeoutSeconds: 30,
-			BackoffMinMS:           300,
-			BackoffMultiplier:      2,
-			Version:                0,
-		}, &dt)
-	}
-	time.Sleep(time.Second * 100)
+	logger.Warn("Sleeping for 1000 seconds before shutdown")
+	time.Sleep(time.Second * 1000)
+	logger.Warn("Shutting down")
 	Server.Echo.Close()
 }

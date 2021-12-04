@@ -10,9 +10,9 @@ CREATE TABLE IF NOT EXISTS items (
   PRIMARY KEY(id)
 );
 
-CREATE TYPE item_state AS ENUM ('queued', 'in-flight', 'delivered', 'discarded', 'delayed', 'timedout', 'nacked', 'discarded', 'expired');
+CREATE TYPE item_state AS ENUM ('queued', 'in-flight', 'delivered', 'discarded', 'delayed', 'timedout', 'nacked', 'expired');
 
-CREATE TYPE delivery_error AS ENUM ('max retries exceeded', 'unknown', 'expired', 'nack');
+CREATE TYPE delivery_error AS ENUM ('max retries exceeded', 'unknown', 'timedout', 'expired', 'nack');
 
 CREATE TABLE IF NOT EXISTS item_states (
   id TEXT NOT NULL,

@@ -20,6 +20,10 @@ func (o *Outbox) Add(item *QueueItem) {
 
 // Pops an item from the outbox in memory.
 func (o *Outbox) Pop() *QueueItem {
-	item := <-o.MessageChan
-	return item
+	select {
+	case item := <-o.MessageChan:
+		return item
+	default:
+		return nil
+	}
 }
