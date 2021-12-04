@@ -29,10 +29,13 @@ func NewSuperQueue(bucketMS, memoryQueueLen int64) *SuperQueue {
 		MapMap:      dmm,
 		ConsumerFunc: func(bucket int64, m map[string]*QueueItem) {
 			logger.Debug("Consuming bucket ", bucket)
+			// TODO: DO this in goroutine
 			for _, i := range m {
 				logger.Debug("Found item: ", i)
 				i.ReEnqueueItem(SQ)
 			}
+			logger.Debug("Deleting bucket ", bucket)
+			delete(dmm.Map, bucket)
 		},
 	}
 	q.DelayConsumer = dc
