@@ -2,10 +2,7 @@ package main
 
 import (
 	"SuperQueue/logger"
-	"context"
 	"time"
-
-	"github.com/georgysavva/scany/pgxscan"
 )
 
 type QueueItem struct {
@@ -126,57 +123,45 @@ func (i *QueueItem) NackItem(sq *SuperQueue) error {
 // -----------------------------------------------------------------------------
 
 func (i *QueueItem) addItemToItemsTable() error {
-	_, err := PGPool.Exec(context.Background(), `
-		INSERT INTO items (id, payload, bucket, created_at, expire_at, in_flight_timeout, backoff_min, backoff_multiplier)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-	`, i.ID, i.Payload, i.StorageBucket, i.CreatedAt, i.ExpireAt, i.InFlightTimeoutSeconds, i.BackoffMinMS, i.BackoffMultiplier)
+	// _, err := PGPool.Exec(context.Background(), `
+	// 	INSERT INTO items (id, payload, bucket, created_at, expire_at, in_flight_timeout, backoff_min, backoff_multiplier)
+	// 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	// `, i.ID, i.Payload, i.StorageBucket, i.CreatedAt, i.ExpireAt, i.InFlightTimeoutSeconds, i.BackoffMinMS, i.BackoffMultiplier)
+	q := DBSession.Query(ItemsTable.Insert()).BindMap(map[string]interface{}{
+		"id":                 i.ID,
+		"payload":            i.Payload,
+		"bucket":             i.StorageBucket,
+		"created_at":         i.CreatedAt,
+		"expire_at":          i.ExpireAt,
+		"in_flight_timeout":  i.InFlightTimeoutSeconds,
+		"backoff_min":        i.BackoffMinMS,
+		"backoff_multiplier": i.BackoffMultiplier,
+	})
+	err := q.ExecRelease()
 	return err
 }
 
 func (i *QueueItem) addItemState(state string, createdAt time.Time, delayTo *time.Time, itemError, itemErrorMessage *string) error {
 	i.Version++
-	_, err := PGPool.Exec(context.Background(), `
-		INSERT INTO item_states (id, version, state, created_at, attempts, delay_to, error, error_message)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-	`, i.ID, i.Version, state, createdAt, i.Attempts, delayTo, itemError, itemErrorMessage)
+	// _, err := PGPool.Exec(context.Background(), `
+	// 	INSERT INTO item_states (id, version, state, created_at, attempts, delay_to, error, error_message)
+	// 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	// `, i.ID, i.Version, state, createdAt, i.Attempts, delayTo, itemError, itemErrorMessage)
+	q := DBSession.Query(ItemStatesTable.Insert()).BindMap(map[string]interface{}{
+		"id":            i.ID,
+		"version":       i.Version,
+		"state":         state,
+		"created_at":    createdAt,
+		"attempts":      i.Attempts,
+		"delay_to":      delayTo,
+		"error":         itemError,
+		"error_message": itemErrorMessage,
+	})
+	err := q.ExecRelease()
 	return err
 }
 
 func (i *QueueItem) discardItem() error {
 
 	return nil
-}
-
-func debugReadItem(itemID string) (*QueueItem, error) {
-	var item QueueItem
-	rows, err := PGPool.Query(context.Background(), `
-		SELECT *
-		FROM items
-		WHERE id = $1
-	`, itemID)
-	if err != nil {
-		return nil, err
-	}
-	err = pgxscan.ScanOne(&item, rows)
-	if err != nil {
-		return nil, err
-	}
-	return &item, nil
-}
-
-func debugReadItemState(itemID string) (*QueueItemStateDB, error) {
-	var item QueueItemStateDB
-	rows, err := PGPool.Query(context.Background(), `
-		SELECT *
-		FROM item_states
-		WHERE id = $1
-	`, itemID)
-	if err != nil {
-		return nil, err
-	}
-	err = pgxscan.ScanOne(&item, rows)
-	if err != nil {
-		return nil, err
-	}
-	return &item, nil
 }

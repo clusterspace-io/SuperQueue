@@ -25,12 +25,14 @@ export default function () {
     console.log('Got state code', resp2.status, 'with test', resp2.status_text, 'get')
   }
   try {
-    const recordID = JSON.parse(resp2.body).id
-    // sleep(0.5);
-    // ack
-    const resp3 = http.post(`http://localhost:8080/ack/${recordID}`)
-    if (resp3.status > 299 || resp3.status < 200) {
-      console.log('Got state code', resp3.status, 'with test', resp3.status_text, 'ack')
+    if (resp2.status !== 204) {
+      const recordID = JSON.parse(resp2.body).id
+      // sleep(0.5);
+      // ack
+      const resp3 = http.post(`http://localhost:8080/ack/${recordID}`)
+      if (resp3.status > 299 || resp3.status < 200) {
+        console.log('Got state code', resp3.status, 'with test', resp3.status_text, 'ack')
+      }
     }
   } catch (error) {
     console.error("Failed to read body:", resp2.status, resp2.body)

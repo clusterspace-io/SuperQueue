@@ -2,7 +2,6 @@ package main
 
 import (
 	"SuperQueue/logger"
-	"os"
 	"time"
 )
 
@@ -20,14 +19,18 @@ func main() {
 	SQ.DelayConsumer.Start()
 
 	logger.Info("Setting up DB")
-	err := ConnectToDB(os.Getenv("CONN_STRING"))
-	if err != nil {
-		panic(err)
-	}
-	err = CreateTables()
-	if err != nil {
-		panic(err)
-	}
+	// err := ConnectToDB(os.Getenv("CONN_STRING"))
+	DBConnectWithoutKeyspace()
+	DBKeyspaceSetup()
+	DBConnect()
+	DBTableSetup()
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// err = CreateTables()
+	// if err != nil {
+	// 	panic(err)
+	// }
 	logger.Info("Done setting up db")
 
 	logger.Warn("Sleeping for 1000 seconds before shutdown")
