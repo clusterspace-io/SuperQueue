@@ -14,7 +14,7 @@ type SuperQueue struct {
 	InFlightMapLock sync.RWMutex
 }
 
-func NewSuperQueue(bucketMS, memoryQueueLen int64) *SuperQueue {
+func NewSuperQueue(bucketMS, queueLen int64) *SuperQueue {
 	dmm := NewMapMap(bucketMS)
 	q := &SuperQueue{
 		DelayMapMap:     dmm, // 5ms default
@@ -22,7 +22,7 @@ func NewSuperQueue(bucketMS, memoryQueueLen int64) *SuperQueue {
 		InFlightMapLock: sync.RWMutex{},
 	}
 
-	q.Outbox = NewOutbox(q, memoryQueueLen)
+	q.Outbox = NewOutbox(q, queueLen)
 
 	// Self reference trick
 	dc := &MapMapConsumer{
