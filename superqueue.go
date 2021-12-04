@@ -2,21 +2,24 @@ package main
 
 import (
 	"SuperQueue/logger"
+	"sync"
 	"time"
 )
 
 type SuperQueue struct {
-	DelayMapMap   *MapMap
-	InFlightItems *map[string]*QueueItem
-	DelayConsumer *MapMapConsumer
-	Outbox        *Outbox
+	DelayMapMap     *MapMap
+	InFlightItems   *map[string]*QueueItem
+	DelayConsumer   *MapMapConsumer
+	Outbox          *Outbox
+	InFlightMapLock sync.Mutex
 }
 
 func NewSuperQueue(bucketMS, memoryQueueLen int64) *SuperQueue {
 	dmm := NewMapMap(bucketMS)
 	q := &SuperQueue{
-		DelayMapMap:   dmm, // 5ms default
-		InFlightItems: &map[string]*QueueItem{},
+		DelayMapMap:     dmm, // 5ms default
+		InFlightItems:   &map[string]*QueueItem{},
+		InFlightMapLock: sync.Mutex{},
 	}
 
 	q.Outbox = NewOutbox(q, memoryQueueLen)
@@ -28,13 +31,13 @@ func NewSuperQueue(bucketMS, memoryQueueLen int64) *SuperQueue {
 		lastConsume: time.Now().UnixMilli(),
 		MapMap:      dmm,
 		ConsumerFunc: func(bucket int64, m map[string]*QueueItem) {
-			logger.Debug("Consuming bucket ", bucket)
+			// logger.Debug("Consuming bucket ", bucket)
 			// TODO: DO this in goroutine
 			for _, i := range m {
-				logger.Debug("Found item: ", i)
+				// logger.Debug("Found item: ", i)
 				i.ReEnqueueItem(SQ)
 			}
-			logger.Debug("Deleting bucket ", bucket)
+			// logger.Debug("Deleting bucket ", bucket)
 			delete(dmm.Map, bucket)
 		},
 	}
@@ -88,7 +91,9 @@ func (sq *SuperQueue) Dequeue() (*QueueItem, error) {
 	item.addItemState("in-flight", time.Now(), nil, nil, nil)
 	item.InFlight = true
 	// Put in in-flight map with in-flight timeout
+	sq.InFlightMapLock.Lock()
 	(*sq.InFlightItems)[item.ID] = item
+	sq.InFlightMapLock.Unlock()
 	// Add to delay map
 	sq.DelayMapMap.AddItem(item, time.Now().Add(time.Duration(item.InFlightTimeoutSeconds)*time.Second).UnixMilli())
 	// Return

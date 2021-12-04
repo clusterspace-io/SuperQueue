@@ -91,6 +91,8 @@ func (i *QueueItem) AckItem(sq *SuperQueue) error {
 	// Write ack to DB
 	i.addItemState("acked", time.Now(), nil, nil, nil)
 	// Remove from inflight table
+	sq.InFlightMapLock.Lock()
+	defer sq.InFlightMapLock.Unlock()
 	delete(*sq.InFlightItems, i.ID)
 	// Remove from delay mapmap
 	sq.DelayMapMap.DeleteItem(i)
@@ -105,6 +107,8 @@ func (i *QueueItem) NackItem(sq *SuperQueue) error {
 		return err
 	}
 	// Remove from inflight table
+	sq.InFlightMapLock.Lock()
+	defer sq.InFlightMapLock.Unlock()
 	delete(*sq.InFlightItems, i.ID)
 	// Remove from old spot in delayed mapmap
 	sq.DelayMapMap.DeleteItem(i)

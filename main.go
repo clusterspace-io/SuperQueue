@@ -2,6 +2,7 @@ package main
 
 import (
 	"SuperQueue/logger"
+	"os"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -21,7 +22,7 @@ func main() {
 	SQ.DelayConsumer.Start()
 
 	logger.Info("Setting up DB")
-	err := ConnectToDB("postgresql://dan:thisisabadpassword@free-tier.gcp-us-central1.cockroachlabs.cloud:26257/defaultdb?sslmode=require&options=--cluster%3Dportly-impala-2852")
+	err := ConnectToDB(os.Getenv("CONN_STRING"))
 	if err != nil {
 		panic(err)
 	}

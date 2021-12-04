@@ -40,9 +40,9 @@ func (m *MapMap) ConsumeRange(lowerbound, upperbound int64, consumerFunc func(in
 // Adds a new item, creating the bucket if needed (thread safe). `bucketer` should reflect the bucket in which you want this item consumed
 func (m *MapMap) AddItem(item *QueueItem, executeTimeMS int64) {
 	item.TimeBucket = m.CalculateBucket(executeTimeMS)
+	m.m.Lock()
+	defer m.m.Unlock()
 	if _, e := m.Map[item.TimeBucket]; !e {
-		m.m.Lock()
-		defer m.m.Unlock()
 		m.Map[item.TimeBucket] = map[string]*QueueItem{}
 	}
 	m.Map[item.TimeBucket][item.ID] = item
@@ -54,5 +54,7 @@ func (m *MapMap) CalculateBucket(bucketer int64) int64 {
 }
 
 func (m *MapMap) DeleteItem(item *QueueItem) {
+	m.m.Lock()
+	defer m.m.Unlock()
 	delete(m.Map[item.TimeBucket], item.ID)
 }
