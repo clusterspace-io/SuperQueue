@@ -46,6 +46,10 @@ func StartHTTPServer() {
 }
 
 func (s *HTTPServer) registerRoutes() {
+	s.Echo.GET("/hc", func(c echo.Context) error {
+		return c.String(200, "y")
+	})
+
 	s.Echo.POST("/record", Post_Record)
 	s.Echo.GET("/record", Get_Record)
 
