@@ -49,7 +49,7 @@ func CreateTables() error {
 	logger.Debug("Created items table")
 
 	statement2 := `
-	CREATE TYPE item_state AS ENUM ('queued', 'in-flight', 'delivered', 'discarded', 'delayed', 'timedout', 'nacked', 'expired');
+	CREATE TYPE item_state AS ENUM ('queued', 'in-flight', 'acked', 'discarded', 'delayed', 'timedout', 'nacked', 'expired');
 	`
 	_, err = PGPool.Query(context.Background(), statement2)
 	if err != nil {

@@ -7,7 +7,7 @@ import (
 
 type SuperQueue struct {
 	DelayMapMap   *MapMap
-	InFlightItems *map[string]QueueItem
+	InFlightItems *map[string]*QueueItem
 	DelayConsumer *MapMapConsumer
 	Outbox        *Outbox
 }
@@ -16,7 +16,7 @@ func NewSuperQueue(bucketMS, memoryQueueLen int64) *SuperQueue {
 	dmm := NewMapMap(bucketMS)
 	q := &SuperQueue{
 		DelayMapMap:   dmm, // 5ms default
-		InFlightItems: &map[string]QueueItem{},
+		InFlightItems: &map[string]*QueueItem{},
 	}
 
 	q.Outbox = NewOutbox(q, memoryQueueLen)
@@ -88,6 +88,8 @@ func (sq *SuperQueue) Dequeue() (*QueueItem, error) {
 	item.addItemState("in-flight", time.Now(), nil, nil, nil)
 	item.InFlight = true
 	// Put in in-flight map with in-flight timeout
+	(*sq.InFlightItems)[item.ID] = item
+	// Add to delay map
 	sq.DelayMapMap.AddItem(item, time.Now().Add(time.Duration(item.InFlightTimeoutSeconds)*time.Second).UnixMilli())
 	// Return
 	return item, nil

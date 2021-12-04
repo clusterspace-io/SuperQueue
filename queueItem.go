@@ -11,7 +11,7 @@ import (
 type QueueItem struct {
 	ID                     string
 	Payload                []byte
-	Bucket                 string
+	StorageBucket          string
 	CreatedAt              time.Time
 	ExpireAt               time.Time
 	InFlightTimeoutSeconds int
@@ -19,6 +19,8 @@ type QueueItem struct {
 	InFlight          bool
 	BackoffMinMS      int
 	BackoffMultiplier float64
+	// The time that is used to bucket for the delaymapmap
+	TimeBucket int64
 
 	// Not stored in the DB
 	Attempts int
@@ -58,7 +60,7 @@ func (i *QueueItem) ReEnqueueItem(sq *SuperQueue) error {
 			return err
 		}
 		i.InFlight = false
-		// TODO: Remove from inflight map
+		delete(*sq.InFlightItems, i.ID)
 	}
 	// Write queued state to DB
 	err := i.addItemState("queued", time.Now(), nil, nil, nil)
@@ -85,9 +87,13 @@ func (i *QueueItem) DequeueItem() error {
 	return nil
 }
 
-func (i *QueueItem) AckItem() error {
+func (i *QueueItem) AckItem(sq *SuperQueue) error {
 	// Write ack to DB
+	i.addItemState("acked", time.Now(), nil, nil, nil)
 	// Remove from inflight table
+	delete(*sq.InFlightItems, i.ID)
+	// Remove from delay mapmap
+	sq.DelayMapMap.DeleteItem(i)
 	return nil
 }
 
@@ -108,7 +114,7 @@ func (i *QueueItem) addItemToItemsTable() error {
 	_, err := PGPool.Exec(context.Background(), `
 		INSERT INTO items (id, payload, bucket, created_at, expire_at, in_flight_timeout, backoff_min, backoff_multiplier)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-	`, i.ID, i.Payload, i.Bucket, i.CreatedAt, i.ExpireAt, i.InFlightTimeoutSeconds, i.BackoffMinMS, i.BackoffMultiplier)
+	`, i.ID, i.Payload, i.StorageBucket, i.CreatedAt, i.ExpireAt, i.InFlightTimeoutSeconds, i.BackoffMinMS, i.BackoffMultiplier)
 	return err
 }
 

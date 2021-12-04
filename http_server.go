@@ -48,6 +48,8 @@ func StartHTTPServer() {
 func (s *HTTPServer) registerRoutes() {
 	s.Echo.POST("/record", Post_Record)
 	s.Echo.GET("/record", Get_Record)
+
+	s.Echo.POST("/ack/:recordID", Post_AckRecord)
 }
 
 func ValidateRequest(c echo.Context, s interface{}) error {
@@ -81,7 +83,7 @@ func Post_Record(c echo.Context) error {
 		ID:                     itemID,
 		Payload:                []byte(body.Payload),
 		CreatedAt:              time.Now(),
-		Bucket:                 "fake-bucket",
+		StorageBucket:          "fake-bucket",
 		ExpireAt:               time.Now().Add(4 * time.Hour),
 		InFlightTimeoutSeconds: 30,
 		BackoffMinMS:           300,
@@ -98,7 +100,7 @@ func Post_Record(c echo.Context) error {
 func Get_Record(c echo.Context) error {
 	item, err := SQ.Dequeue()
 	if err != nil {
-		return c.String(500, "Failed to dequeue item")
+		return c.String(500, "Failed to dequeue record")
 	}
 	// Empty
 	if item == nil {
@@ -108,4 +110,24 @@ func Get_Record(c echo.Context) error {
 		"id":      item.ID,
 		"payload": string(item.Payload),
 	})
+}
+
+func Post_AckRecord(c echo.Context) error {
+	recordID := c.Param("recordID")
+	if recordID == "" {
+		return c.String(400, "No record ID given")
+	}
+
+	item, exists := (*SQ.InFlightItems)[recordID]
+	// Check if record exists
+	if !exists {
+		return c.String(404, "Record not found")
+	}
+
+	// Ack the record
+	err := item.AckItem(SQ)
+	if err != nil {
+		return c.String(500, "Failed to ack record")
+	}
+	return c.String(200, "")
 }
