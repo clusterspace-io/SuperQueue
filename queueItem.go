@@ -50,7 +50,7 @@ func (i *QueueItem) ReEnqueueItem(sq *SuperQueue) error {
 	// If in-flight then mark timedout
 	if i.InFlight {
 		timeoutMSG := "timedout"
-		err := i.addItemState("timedout", time.Now(), nil, &timeoutMSG, &timeoutMSG)
+		err := i.addItemState(sq.Namespace, "timedout", time.Now(), nil, &timeoutMSG, &timeoutMSG)
 		if err != nil {
 			logger.Error("Error adding item state during timeout:")
 			logger.Error(err)
@@ -62,7 +62,7 @@ func (i *QueueItem) ReEnqueueItem(sq *SuperQueue) error {
 		delete(*sq.InFlightItems, i.ID)
 	}
 	// Write queued state to DB
-	err := i.addItemState("queued", time.Now(), nil, nil, nil)
+	err := i.addItemState(sq.Namespace, "queued", time.Now(), nil, nil, nil)
 	if err != nil {
 		logger.Error("Error adding item state during requeue:")
 		logger.Error(err)
@@ -88,7 +88,7 @@ func (i *QueueItem) DequeueItem() error {
 
 func (i *QueueItem) AckItem(sq *SuperQueue) error {
 	// Write ack to DB
-	i.addItemState("acked", time.Now(), nil, nil, nil)
+	i.addItemState(sq.Namespace, "acked", time.Now(), nil, nil, nil)
 	// Remove from inflight table
 	sq.InFlightMapLock.Lock()
 	defer sq.InFlightMapLock.Unlock()
@@ -101,7 +101,7 @@ func (i *QueueItem) AckItem(sq *SuperQueue) error {
 func (i *QueueItem) NackItem(sq *SuperQueue) error {
 	// Write nack to DB
 	nackMSG := "nacked"
-	err := i.addItemState("nacked", time.Now(), nil, &nackMSG, &nackMSG)
+	err := i.addItemState(sq.Namespace, "nacked", time.Now(), nil, &nackMSG, &nackMSG)
 	if err != nil {
 		return err
 	}
@@ -122,12 +122,13 @@ func (i *QueueItem) NackItem(sq *SuperQueue) error {
 // Internal functions
 // -----------------------------------------------------------------------------
 
-func (i *QueueItem) addItemToItemsTable() error {
+func (i *QueueItem) addItemToItemsTable(namespace string) error {
 	// _, err := PGPool.Exec(context.Background(), `
 	// 	INSERT INTO items (id, payload, bucket, created_at, expire_at, in_flight_timeout, backoff_min, backoff_multiplier)
 	// 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	// `, i.ID, i.Payload, i.StorageBucket, i.CreatedAt, i.ExpireAt, i.InFlightTimeoutSeconds, i.BackoffMinMS, i.BackoffMultiplier)
 	q := DBSession.Query(ItemsTable.Insert()).BindMap(map[string]interface{}{
+		"namespace":          namespace,
 		"id":                 i.ID,
 		"payload":            i.Payload,
 		"bucket":             i.StorageBucket,
@@ -141,13 +142,14 @@ func (i *QueueItem) addItemToItemsTable() error {
 	return err
 }
 
-func (i *QueueItem) addItemState(state string, createdAt time.Time, delayTo *time.Time, itemError, itemErrorMessage *string) error {
+func (i *QueueItem) addItemState(namespace, state string, createdAt time.Time, delayTo *time.Time, itemError, itemErrorMessage *string) error {
 	i.Version++
 	// _, err := PGPool.Exec(context.Background(), `
 	// 	INSERT INTO item_states (id, version, state, created_at, attempts, delay_to, error, error_message)
 	// 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	// `, i.ID, i.Version, state, createdAt, i.Attempts, delayTo, itemError, itemErrorMessage)
 	q := DBSession.Query(ItemStatesTable.Insert()).BindMap(map[string]interface{}{
+		"namespace":     namespace,
 		"id":            i.ID,
 		"version":       i.Version,
 		"state":         state,

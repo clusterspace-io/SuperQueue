@@ -21,6 +21,7 @@ var (
 	ItemsMetadata = &table.Metadata{
 		Name: "items",
 		Columns: []string{
+			"namespace",
 			"id",
 			"payload",
 			"bucket",
@@ -30,12 +31,13 @@ var (
 			"backoff_min",
 			"backoff_multiplier",
 		},
-		PartKey: []string{"id"},
+		PartKey: []string{"namespace", "id"},
 	}
 
 	ItemStatesMetadata = &table.Metadata{
 		Name: "item_states",
 		Columns: []string{
+			"namespace",
 			"id",
 			"version",
 			"state",
@@ -45,7 +47,7 @@ var (
 			"error",
 			"error_message",
 		},
-		PartKey: []string{"id"},
+		PartKey: []string{"namespace", "id"},
 		SortKey: []string{"version"},
 	}
 
@@ -122,6 +124,7 @@ func DBReset() {
 func DBTableSetup() {
 	err := DBSession.ExecStmt(`
 		CREATE TABLE IF NOT EXISTS items (
+			namespace TEXT,
 			id TEXT,
 			payload BLOB,
 			bucket TEXT,
@@ -130,7 +133,7 @@ func DBTableSetup() {
 			in_flight_timeout INT,
 			backoff_min INT,
 			backoff_multiplier DOUBLE,
-			PRIMARY KEY(id)
+			PRIMARY KEY((namespace, id))
 		);
 	`)
 	if err != nil {
@@ -139,6 +142,7 @@ func DBTableSetup() {
 
 	err = DBSession.ExecStmt(`
 		CREATE TABLE IF NOT EXISTS item_states (
+			namespace TEXT,
 			id TEXT,
 			version INT,
 			state TEXT,
@@ -147,7 +151,7 @@ func DBTableSetup() {
 			delay_to TIMESTAMP,
 			error TEXT,
 			error_message TEXT,
-			PRIMARY KEY(id, version)
+			PRIMARY KEY((namespace, id), version)
 		);
 	`)
 	if err != nil {

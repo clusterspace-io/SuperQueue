@@ -12,9 +12,11 @@ type SuperQueue struct {
 	DelayConsumer   *MapMapConsumer
 	Outbox          *Outbox
 	InFlightMapLock sync.RWMutex
+	// The combination of the queue name and partition
+	Namespace string
 }
 
-func NewSuperQueue(bucketMS, queueLen int64) *SuperQueue {
+func NewSuperQueue(namespace string, bucketMS, queueLen int64) *SuperQueue {
 	dmm := NewMapMap(bucketMS)
 	q := &SuperQueue{
 		DelayMapMap:     dmm, // 5ms default
@@ -50,7 +52,7 @@ func NewSuperQueue(bucketMS, queueLen int64) *SuperQueue {
 
 func (sq *SuperQueue) Enqueue(item *QueueItem, delayTime *time.Time) error {
 	logger.Debug("Enqueueing item ", item.ID)
-	err := item.addItemToItemsTable()
+	err := item.addItemToItemsTable(sq.Namespace)
 	if err != nil {
 		logger.Error("Error inserting item into table on Enqueue:")
 		logger.Error(err)
@@ -59,7 +61,7 @@ func (sq *SuperQueue) Enqueue(item *QueueItem, delayTime *time.Time) error {
 
 	if delayTime != nil {
 		// If delayed, put in mapmap
-		err = item.addItemState("delayed", item.CreatedAt, delayTime, nil, nil)
+		err = item.addItemState(sq.Namespace, "delayed", item.CreatedAt, delayTime, nil, nil)
 		if err != nil {
 			logger.Error("Error inserting delayed item state into table on Enqueue:")
 			logger.Error(err)
@@ -68,7 +70,7 @@ func (sq *SuperQueue) Enqueue(item *QueueItem, delayTime *time.Time) error {
 		item.DelayEnqueueItem(sq, *delayTime)
 	} else {
 		// Otherwise put it right in outbox
-		err = item.addItemState("queued", item.CreatedAt, nil, nil, nil)
+		err = item.addItemState(sq.Namespace, "queued", item.CreatedAt, nil, nil, nil)
 		if err != nil {
 			logger.Error("Error inserting item state into table on Enqueue:")
 			logger.Error(err)
@@ -90,7 +92,7 @@ func (sq *SuperQueue) Dequeue() (*QueueItem, error) {
 	// Increment delivery attempts
 	item.Attempts++
 	// Write inflight state to db
-	item.addItemState("in-flight", time.Now(), nil, nil, nil)
+	item.addItemState(sq.Namespace, "in-flight", time.Now(), nil, nil, nil)
 	item.InFlight = true
 	// Put in in-flight map with in-flight timeout
 	sq.InFlightMapLock.Lock()
