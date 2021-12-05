@@ -5,7 +5,15 @@ Super Simple, Super Scalable, Super Speedy, Super Queue.
 ## Table of Contents <!-- omit in toc -->
 - [Motivation](#motivation)
 - [Inspiration](#inspiration)
-- [Using](#using)
+- [Using as a Primitive](#using-as-a-primitive)
+- [Get Started](#get-started)
+  - [Running ScyllaDB](#running-scylladb)
+  - [Running SuperQueue (single partition)](#running-superqueue-single-partition)
+- [API Docs](#api-docs)
+  - [POST /record - Create a new record](#post-record---create-a-new-record)
+  - [GET /record - Get a record](#get-record---get-a-record)
+  - [POST /ack/:recordID](#post-ackrecordid)
+  - [POST /nack/:recordID](#post-nackrecordid)
 
 ## Motivation
 
@@ -45,7 +53,7 @@ In their design they use MySQL, I chose ScyllaDB (I've also done tests with CRDB
 
 I tried using CockroachDB with both range and hash partitioning, but running on my laptop any real load would induce 100ms> inserts, Scylla could go up to 10ms. Both should be within single digit ms (Scylla even going under 1ms) on real DB clusters on real hardware, however ScyllaDB should scale better with the same hardware so that is the choice for now, plus consistency is not needed. Changing the DB is very easy since only a few queries need to be changed (2 writes, and 1 read). In theory something in-memory like Redis could work well too, but you'll have to concern yourself with data set size (adding TTLs and archiving data could be reasonable since there is a max lifetime to records).
 
-## Using
+## Using as a Primitive
 
 SuperQueue can be used as is, but doesn't offer much protection. It exposes metrics, but does not enforce high availability by itself. It is designed to be a primitive that can be wrapped by other service to enable a wide array of uses.
 
@@ -58,3 +66,96 @@ SuperQueues being virtual also allows it to scale extremely quickly. If the reso
 SuperQueues could also be used in a self hosted manner to allow flexibility how load balancing and scaling is done. It also allows establishing what ever limits are desired, and what happens during extreme back pressure.
 
 It could even be used internally as a golang package.
+
+## Get Started
+
+To run as standalone, there are a few environment variables that need to be setup, as well as running ScyllaDB somewhere.
+
+### Running ScyllaDB
+
+The easiest way to do this is with docker:
+
+```
+docker run -p 9042:9042 --name some-scylla -d scylladb/scylla
+```
+
+_Pro tip: Change `9042:9042` to `localhost:9042:9042` if you only want Scylla exposed on your localhost interface_
+
+### Running SuperQueue (single partition)
+
+As it currently stands, the whole binary supports a single partition of a single queue. This is due to how the `main.go` file is setup.
+
+```
+HTTP_PORT=8080 PARTITION=part1 go run .
+```
+
+_Pro tip: At high load, writing to stdout becomes a bottleneck, so do a `> out.txt` if you are scale testing!_
+
+## API Docs
+
+There are only a few endpoints, which make the system super simple and robust. For examples I will be using the `httpie` cli.
+
+### POST /record - Create a new record
+
+This will create a new record for processing.
+
+Headers:
+- `content-type: application/json`
+
+Body:
+```
+{
+  payload: string, // The string payload, typically stringified JSON
+  delay_ms?: int // Delay queueing, this should be a reasonable time in the future (at least 100ms) since there is no validation here currently. A value in the past will get (nearly) immediately queued.
+}
+```
+
+Expected Response code: `204`
+
+Example:
+
+```
+http post http://localhost:8080/record payload=hey!
+```
+
+### GET /record - Get a record
+
+This will fetch the next record that is available in the queue (partition). Currently there is a hard-coded 30s in-flight timeout, meaning that after 30 seconds if you do not ack or nack the record it will requeue.
+
+Expected Response body (code `200`):
+
+```
+{
+  id: string,
+  payload: string
+}
+```
+
+You will get a `204` response if the queue is empty.
+
+Example:
+```
+http get http://localhost:8080/record
+```
+
+### POST /ack/:recordID
+
+Acknowledge a record to prevent further processing.
+
+Expected Response code: `200`
+
+Example:
+```
+http post http://localhost:8080/ack/partition1_21yFbkxyFx6AjihUA2CN0WkrfJD
+```
+
+### POST /nack/:recordID
+
+Negatively acknowledge a record to immediately requeue the record. As of now no back off or delay is supported.
+
+Expected Response code: `200`
+
+Example:
+```
+http post http://localhost:8080/nack/partition1_21yFbkxyFx6AjihUA2CN0WkrfJD
+```
