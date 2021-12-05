@@ -9,6 +9,8 @@ I think that the lower latency on the slower requests has to do with 2 things:
 1. Less lock contention
 2. My laptop's ability to handle this many requests
 
+Basically the lower the req/s, the lower the latency. This is where horizontal scalability comes in (more smaller pods rather than fewer larger)
+
 ### full.js, with 0.5s delay between get and ack, 230 VUs
 
 ```
@@ -391,4 +393,42 @@ default ✓ [======================================] 000/200 VUs  40s
      iterations.................: 174524 4360.535896/s
      vus........................: 1      min=1   max=200
      vus_max....................: 200    min=200 max=200
+```
+
+### full.js no delay 50 VUs
+
+```
+ dangoodman: ~/clusterSpaceCode/SuperQueue/loadtest git:(12-namespacing) ✗ k6 run full.js              9:07PM
+
+          /\      |‾‾| /‾‾/   /‾‾/
+     /\  /  \     |  |/  /   /  /
+    /  \/    \    |     (   /   ‾‾\
+   /          \   |  |\  \ |  (‾)  |
+  / __________ \  |__| \__\ \_____/ .io
+
+  execution: local
+     script: full.js
+     output: -
+
+  scenarios: (100.00%) 1 scenario, 50 max VUs, 1m10s max duration (incl. graceful stop):
+           * default: Up to 50 looping VUs for 40s over 3 stages (gracefulRampDown: 30s, gracefulStop: 30s)
+
+
+running (0m40.0s), 00/50 VUs, 100805 complete and 0 interrupted iterations
+default ✓ [======================================] 00/50 VUs  40s
+
+     data_received..............: 49 MB  1.2 MB/s
+     data_sent..................: 40 MB  987 kB/s
+     http_req_blocked...........: avg=2.58µs  min=0s     med=2µs     max=66.74ms  p(90)=3µs     p(95)=3µs
+     http_req_connecting........: avg=36ns    min=0s     med=0s      max=562µs    p(90)=0s      p(95)=0s
+     http_req_duration..........: avg=5.71ms  min=146µs  med=4.61ms  max=671.15ms p(90)=9.45ms  p(95)=11.47ms
+     http_req_receiving.........: avg=28.44µs min=8µs    med=23µs    max=5.87ms   p(90)=43µs    p(95)=55µs
+     http_req_sending...........: avg=12.41µs min=4µs    med=10µs    max=5.95ms   p(90)=17µs    p(95)=25µs
+     http_req_tls_handshaking...: avg=0s      min=0s     med=0s      max=0s       p(90)=0s      p(95)=0s
+     http_req_waiting...........: avg=5.67ms  min=122µs  med=4.57ms  max=671.1ms  p(90)=9.41ms  p(95)=11.42ms
+     http_reqs..................: 302381 7555.129237/s
+     iteration_duration.........: avg=17.38ms min=5.22ms med=15.68ms max=1.02s    p(90)=23.55ms p(95)=27.65ms
+     iterations.................: 100805 2518.659581/s
+     vus........................: 1      min=1  max=50
+     vus_max....................: 50     min=50 max=50
 ```
