@@ -14,6 +14,7 @@ Super Simple, Super Scalable, Super Speedy, Super Queue.
   - [GET /record - Get a record](#get-record---get-a-record)
   - [POST /ack/:recordID](#post-ackrecordid)
   - [POST /nack/:recordID](#post-nackrecordid)
+  - [Get /metrics](#get-metrics)
 
 ## Motivation
 
@@ -159,3 +160,9 @@ Example:
 ```
 http post http://localhost:8080/nack/partition1_21yFbkxyFx6AjihUA2CN0WkrfJD
 ```
+
+### Get /metrics
+
+Get metrics about the partition in prometheus format
+
+Expected Response code: `200`
