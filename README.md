@@ -120,7 +120,7 @@ http post http://localhost:8080/record payload=hey!
 
 ### GET /record - Get a record
 
-This will fetch the next record that is available in the queue (partition). Currently there is a hard-coded 30s in-flight timeout, meaning that after 30 seconds if you do not ack or nack the record it will requeue.
+This will fetch the next record that is available in the queue (partition). Currently there is a hard-coded 30s in-flight timeout, meaning that after 30 seconds if you do not ack or nack the record it will requeue (and unable to ack or nack).
 
 Expected Response body (code `200`):
 
