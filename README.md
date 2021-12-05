@@ -34,6 +34,8 @@ The goal of SuperQueues was to appeal to as many use cases as possible by buildi
 - At-least-once processing (messages will requeue until they are acknowledged or exceed their lifetime)
 - Durability (when we say we've got your message, it is written durably)
 
+A WIP Request Router is available here: https://github.com/clusterspace-io/SuperQueueRequestRouter
+
 ## Inspiration
 
 In order to build such a system, we need to address some elephants in the room.
