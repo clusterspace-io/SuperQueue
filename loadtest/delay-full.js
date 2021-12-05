@@ -2,15 +2,16 @@ import http from 'k6/http';
 import { sleep } from 'k6';
 export const options = {
   stages: [
-    { duration: '5s', target: 230 },
-    { duration: '30s', target: 230 },
+    { duration: '5s', target: 200 },
+    { duration: '30s', target: 200 },
     { duration: '5s', target: 0 },
   ],
   teardownTimeout: '10s'
 };
 export default function () {
   const resp = http.post('http://localhost:8080/record', JSON.stringify({
-    payload: 'this is a test payload'
+    payload: 'this is a test payload',
+    delay_ms: 1000
   }), {
     headers: {
       'content-type': 'application/json'

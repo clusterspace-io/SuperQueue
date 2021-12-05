@@ -278,3 +278,117 @@ default ✓ [======================================] 000/230 VUs  40s
      vus........................: 12     min=12  max=230
      vus_max....................: 230    min=230 max=230
 ```
+
+### full.js no delay 230 VUs switched bucket handling to goroutines
+
+```
+ dangoodman: ~/clusterSpaceCode/SuperQueue/loadtest git:(master) ✗ k6 run full.js                      7:01PM
+
+          /\      |‾‾| /‾‾/   /‾‾/
+     /\  /  \     |  |/  /   /  /
+    /  \/    \    |     (   /   ‾‾\
+   /          \   |  |\  \ |  (‾)  |
+  / __________ \  |__| \__\ \_____/ .io
+
+  execution: local
+     script: full.js
+     output: -
+
+  scenarios: (100.00%) 1 scenario, 230 max VUs, 1m10s max duration (incl. graceful stop):
+           * default: Up to 230 looping VUs for 40s over 3 stages (gracefulRampDown: 30s, gracefulStop: 30s)
+
+
+running (0m40.0s), 000/230 VUs, 182256 complete and 0 interrupted iterations
+default ✓ [======================================] 000/230 VUs  40s
+
+     data_received..............: 89 MB  2.2 MB/s
+     data_sent..................: 71 MB  1.8 MB/s
+     http_req_blocked...........: avg=2.39µs  min=0s     med=2µs     max=2.92ms   p(90)=3µs     p(95)=3µs
+     http_req_connecting........: avg=119ns   min=0s     med=0s      max=1.37ms   p(90)=0s      p(95)=0s
+     http_req_duration..........: avg=14.65ms min=1.09ms med=12.04ms max=185.94ms p(90)=26.14ms p(95)=32.16ms
+     http_req_receiving.........: avg=28.48µs min=8µs    med=21µs    max=12.21ms  p(90)=37µs    p(95)=51µs
+     http_req_sending...........: avg=11.91µs min=4µs    med=9µs     max=8.26ms   p(90)=14µs    p(95)=21µs
+     http_req_tls_handshaking...: avg=0s      min=0s     med=0s      max=0s       p(90)=0s      p(95)=0s
+     http_req_waiting...........: avg=14.61ms min=1.07ms med=12ms    max=185.91ms p(90)=26.1ms  p(95)=32.11ms
+     http_reqs..................: 546768 13662.220313/s
+     iteration_duration.........: avg=44.19ms min=5.44ms med=41.67ms max=221.27ms p(90)=64.37ms p(95)=76.27ms
+     iterations.................: 182256 4554.073438/s
+     vus........................: 1      min=1   max=230
+     vus_max....................: 230    min=230 max=230
+```
+
+### Delayed message with no goroutine
+
+```
+ dangoodman: ~/clusterSpaceCode/SuperQueue/loadtest git:(master) ✗ k6 run delay-full.js                7:07PM
+
+          /\      |‾‾| /‾‾/   /‾‾/
+     /\  /  \     |  |/  /   /  /
+    /  \/    \    |     (   /   ‾‾\
+   /          \   |  |\  \ |  (‾)  |
+  / __________ \  |__| \__\ \_____/ .io
+
+  execution: local
+     script: delay-full.js
+     output: -
+
+  scenarios: (100.00%) 1 scenario, 200 max VUs, 1m10s max duration (incl. graceful stop):
+           * default: Up to 200 looping VUs for 40s over 3 stages (gracefulRampDown: 30s, gracefulStop: 30s)
+
+
+running (0m40.0s), 000/200 VUs, 174386 complete and 0 interrupted iterations
+default ✓ [======================================] 000/200 VUs  40s
+
+     data_received..............: 85 MB  2.1 MB/s
+     data_sent..................: 71 MB  1.8 MB/s
+     http_req_blocked...........: avg=2.38µs  min=0s     med=2µs     max=2.27ms   p(90)=3µs     p(95)=3µs
+     http_req_connecting........: avg=103ns   min=0s     med=0s      max=861µs    p(90)=0s      p(95)=0s
+     http_req_duration..........: avg=13.31ms min=1.1ms  med=10.96ms max=140ms    p(90)=23.57ms p(95)=28.8ms
+     http_req_receiving.........: avg=28.08µs min=7µs    med=21µs    max=47.35ms  p(90)=37µs    p(95)=51µs
+     http_req_sending...........: avg=11.7µs  min=4µs    med=9µs     max=2.52ms   p(90)=14µs    p(95)=21µs
+     http_req_tls_handshaking...: avg=0s      min=0s     med=0s      max=0s       p(90)=0s      p(95)=0s
+     http_req_waiting...........: avg=13.27ms min=1.07ms med=10.92ms max=139.96ms p(90)=23.53ms p(95)=28.75ms
+     http_reqs..................: 523158 13070.270687/s
+     iteration_duration.........: avg=40.16ms min=5.27ms med=37.89ms max=186.27ms p(90)=57.78ms p(95)=67.88ms
+     iterations.................: 174386 4356.756896/s
+     vus........................: 1      min=1   max=200
+     vus_max....................: 200    min=200 max=200
+```
+
+### Delayed message with goroutine
+
+```
+ dangoodman: ~/clusterSpaceCode/SuperQueue/loadtest git:(master) ✗ k6 run delay-full.js                7:08PM
+
+          /\      |‾‾| /‾‾/   /‾‾/
+     /\  /  \     |  |/  /   /  /
+    /  \/    \    |     (   /   ‾‾\
+   /          \   |  |\  \ |  (‾)  |
+  / __________ \  |__| \__\ \_____/ .io
+
+  execution: local
+     script: delay-full.js
+     output: -
+
+  scenarios: (100.00%) 1 scenario, 200 max VUs, 1m10s max duration (incl. graceful stop):
+           * default: Up to 200 looping VUs for 40s over 3 stages (gracefulRampDown: 30s, gracefulStop: 30s)
+
+
+running (0m40.0s), 000/200 VUs, 174524 complete and 0 interrupted iterations
+default ✓ [======================================] 000/200 VUs  40s
+
+     data_received..............: 85 MB  2.1 MB/s
+     data_sent..................: 71 MB  1.8 MB/s
+     http_req_blocked...........: avg=2.41µs  min=0s     med=2µs     max=3.5ms    p(90)=3µs     p(95)=3µs
+     http_req_connecting........: avg=95ns    min=0s     med=0s      max=827µs    p(90)=0s      p(95)=0s
+     http_req_duration..........: avg=13.3ms  min=1.17ms med=10.92ms max=255.04ms p(90)=23.49ms p(95)=28.75ms
+     http_req_receiving.........: avg=28.54µs min=8µs    med=21µs    max=13.23ms  p(90)=38µs    p(95)=52µs
+     http_req_sending...........: avg=11.96µs min=4µs    med=9µs     max=14.84ms  p(90)=14µs    p(95)=22µs
+     http_req_tls_handshaking...: avg=0s      min=0s     med=0s      max=0s       p(90)=0s      p(95)=0s
+     http_req_waiting...........: avg=13.25ms min=1.15ms med=10.88ms max=255ms    p(90)=23.45ms p(95)=28.71ms
+     http_reqs..................: 523572 13081.607688/s
+     iteration_duration.........: avg=40.13ms min=5.17ms med=37.66ms max=306.83ms p(90)=57.61ms p(95)=68.1ms
+     iterations.................: 174524 4360.535896/s
+     vus........................: 1      min=1   max=200
+     vus_max....................: 200    min=200 max=200
+```
