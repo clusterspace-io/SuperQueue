@@ -2,6 +2,7 @@ package main
 
 import (
 	"SuperQueue/logger"
+	"sync/atomic"
 	"time"
 )
 
@@ -42,6 +43,8 @@ type QueueItemStateDB struct {
 func (i *QueueItem) EnqueueItem(sq *SuperQueue) error {
 	// Add item to the queue
 	sq.Outbox.Add(i)
+	atomic.AddInt64(&QueuedMessages, 1)
+	atomic.AddInt64(&TotalQueuedMessages, 1)
 	return nil
 }
 
@@ -60,6 +63,7 @@ func (i *QueueItem) ReEnqueueItem(sq *SuperQueue) error {
 		sq.InFlightMapLock.Lock()
 		delete(*sq.InFlightItems, i.ID)
 		sq.InFlightMapLock.Unlock()
+		atomic.AddInt64(&TimedoutMessages, 1)
 	}
 	// Write queued state to DB
 	err := i.addItemState(sq.Namespace, "queued", time.Now(), nil, nil, nil)
@@ -76,6 +80,7 @@ func (i *QueueItem) DelayEnqueueItem(sq *SuperQueue, delayTime time.Time) error 
 	// Add item to DB as delayed
 	// Add item to delay mapmap
 	sq.DelayMapMap.AddItem(i, delayTime.UnixMilli())
+	atomic.AddInt64(&DelayedMessages, 1)
 	return nil
 }
 
@@ -95,6 +100,7 @@ func (i *QueueItem) AckItem(sq *SuperQueue) error {
 	sq.InFlightMapLock.Unlock()
 	// Remove from delay mapmap
 	sq.DelayMapMap.DeleteItem(i)
+	atomic.AddInt64(&AckedMessages, 1)
 	return nil
 }
 
@@ -115,6 +121,7 @@ func (i *QueueItem) NackItem(sq *SuperQueue) error {
 	// Add to new spot in delayed mapmap
 	i.InFlight = false
 	i.ReEnqueueItem(sq)
+	atomic.AddInt64(&NackedMessages, 1)
 	return nil
 }
 
