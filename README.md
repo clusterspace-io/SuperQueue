@@ -35,7 +35,7 @@ In order to make these queues, I spent a long time thinking about how to design 
 
 SQS happens to have no ordering guarantees. By this they basically mean they partition your queue (just like DynamoDB), and items within a partition should be within the same order. Based on how full each partition is and how they get load balanced, things in other partitions may be out of order.
 
-While searching for a good way to design within the application itself, I cam across [Segment's](https://segment.com/blog/introducing-centrifuge/), big credit to them for discussing their architecture because it basically confirmed what I wanted to do: DB backed queues with in-memory processing. This also helped shape the design for the non-blocking aspect of the system.
+While searching for a good way to design within the application itself, I came across [Segment's Centrifuge](https://segment.com/blog/introducing-centrifuge/), big credit to them for discussing their architecture because it basically confirmed what I wanted to do: DB backed queues with in-memory processing. This also helped shape the design for the non-blocking aspect of the system.
 
 However I've implemented some stark changes from their architecture:
 
