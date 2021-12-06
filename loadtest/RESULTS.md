@@ -7,9 +7,9 @@ This is not representative of real world performance, but stress testing locally
 I think that the lower latency on the slower requests has to do with 2 things:
 
 1. Less lock contention
-2. My laptop's ability to handle this many requests
+2. My laptop's ability to handle this many requests (specifically scylladb, see removed db tests for no diff. between instant return and 3ms wait)
 
-Basically the lower the req/s, the lower the latency. This is where horizontal scalability comes in (more smaller pods rather than fewer larger)
+Basically the lower the req/s, the lower the latency. This is where horizontal scalability comes in (more smaller pods rather than fewer larger). Also the final synthetic db latency tests indicate to me that at scale my local scylla is avg. ~10ms/op
 
 ### full.js, with 0.5s delay between get and ack, 230 VUs
 
@@ -431,4 +431,118 @@ default ✓ [======================================] 00/50 VUs  40s
      iterations.................: 100805 2518.659581/s
      vus........................: 1      min=1  max=50
      vus_max....................: 50     min=50 max=50
+```
+
+### full.js 230 VUs no delay no DB (just return nil)
+
+```
+ dangoodman: ~/clusterSpaceCode/SuperQueue/loadtest git:(master) ✗ k6 run full.js                      7:59PM
+
+          /\      |‾‾| /‾‾/   /‾‾/
+     /\  /  \     |  |/  /   /  /
+    /  \/    \    |     (   /   ‾‾\
+   /          \   |  |\  \ |  (‾)  |
+  / __________ \  |__| \__\ \_____/ .io
+
+  execution: local
+     script: full.js
+     output: -
+
+  scenarios: (100.00%) 1 scenario, 230 max VUs, 1m10s max duration (incl. graceful stop):
+           * default: Up to 230 looping VUs for 40s over 3 stages (gracefulRampDown: 30s, gracefulStop: 30s)
+
+
+running (0m40.0s), 000/230 VUs, 410501 complete and 0 interrupted iterations
+default ✓ [======================================] 000/230 VUs  40s
+
+     data_received..............: 201 MB  5.0 MB/s
+     data_sent..................: 161 MB  4.0 MB/s
+     http_req_blocked...........: avg=3.44µs  min=0s      med=2µs    max=120.68ms p(90)=3µs     p(95)=4µs
+     http_req_connecting........: avg=247ns   min=0s      med=0s     max=76.16ms  p(90)=0s      p(95)=0s
+     http_req_duration..........: avg=6.4ms   min=72µs    med=3.71ms max=221.18ms p(90)=16.55ms p(95)=23.16ms
+     http_req_receiving.........: avg=34.28µs min=7µs     med=21µs   max=180.85ms p(90)=38µs    p(95)=49µs
+     http_req_sending...........: avg=15.58µs min=4µs     med=10µs   max=117.5ms  p(90)=19µs    p(95)=23µs
+     http_req_tls_handshaking...: avg=0s      min=0s      med=0s     max=0s       p(90)=0s      p(95)=0s
+     http_req_waiting...........: avg=6.35ms  min=55µs    med=3.65ms max=221.15ms p(90)=16.5ms  p(95)=23.09ms
+     http_reqs..................: 1231503 30756.275876/s
+     iteration_duration.........: avg=19.6ms  min=397.4µs med=15.8ms max=331.93ms p(90)=41.05ms p(95)=51.52ms
+     iterations.................: 410501  10252.091959/s
+     vus........................: 2       min=2   max=230
+     vus_max....................: 230     min=230 max=230
+```
+
+### same as above but synthetic 3ms sleep for DB op
+
+```
+ dangoodman: ~/clusterSpaceCode/SuperQueue/loadtest git:(master) ✗ k6 run full.js                      8:00PM
+
+          /\      |‾‾| /‾‾/   /‾‾/
+     /\  /  \     |  |/  /   /  /
+    /  \/    \    |     (   /   ‾‾\
+   /          \   |  |\  \ |  (‾)  |
+  / __________ \  |__| \__\ \_____/ .io
+
+  execution: local
+     script: full.js
+     output: -
+
+  scenarios: (100.00%) 1 scenario, 230 max VUs, 1m10s max duration (incl. graceful stop):
+           * default: Up to 230 looping VUs for 40s over 3 stages (gracefulRampDown: 30s, gracefulStop: 30s)
+
+
+running (0m40.0s), 000/230 VUs, 396820 complete and 0 interrupted iterations
+default ✓ [======================================] 000/230 VUs  40s
+
+     data_received..............: 194 MB  4.8 MB/s
+     data_sent..................: 156 MB  3.9 MB/s
+     http_req_blocked...........: avg=2.85µs  min=0s      med=2µs     max=18.17ms  p(90)=3µs     p(95)=4µs
+     http_req_connecting........: avg=71ns    min=0s      med=0s      max=10.43ms  p(90)=0s      p(95)=0s
+     http_req_duration..........: avg=6.65ms  min=3.08ms  med=6.2ms   max=340.91ms p(90)=11.43ms p(95)=14.39ms
+     http_req_receiving.........: avg=31.16µs min=8µs     med=22µs    max=64.12ms  p(90)=40µs    p(95)=52µs
+     http_req_sending...........: avg=14.51µs min=4µs     med=10µs    max=171.07ms p(90)=19µs    p(95)=23µs
+     http_req_tls_handshaking...: avg=0s      min=0s      med=0s      max=0s       p(90)=0s      p(95)=0s
+     http_req_waiting...........: avg=6.61ms  min=3.06ms  med=6.17ms  max=340.61ms p(90)=11.37ms p(95)=14.33ms
+     http_reqs..................: 1190460 29738.237264/s
+     iteration_duration.........: avg=20.28ms min=12.48ms med=17.74ms max=376.86ms p(90)=30.57ms p(95)=35.82ms
+     iterations.................: 396820  9912.745755/s
+     vus........................: 1       min=1   max=230
+     vus_max....................: 230     min=230 max=230
+```
+
+### same as above but 10ms sleep
+
+```
+ dangoodman: ~/clusterSpaceCode/SuperQueue/loadtest git:(master) ✗ k6 run full.js                      8:01PM
+
+          /\      |‾‾| /‾‾/   /‾‾/
+     /\  /  \     |  |/  /   /  /
+    /  \/    \    |     (   /   ‾‾\
+   /          \   |  |\  \ |  (‾)  |
+  / __________ \  |__| \__\ \_____/ .io
+
+  execution: local
+     script: full.js
+     output: -
+
+  scenarios: (100.00%) 1 scenario, 230 max VUs, 1m10s max duration (incl. graceful stop):
+           * default: Up to 230 looping VUs for 40s over 3 stages (gracefulRampDown: 30s, gracefulStop: 30s)
+
+
+running (0m40.0s), 000/230 VUs, 189063 complete and 0 interrupted iterations
+default ✓ [======================================] 000/230 VUs  40s
+
+     data_received..............: 92 MB  2.3 MB/s
+     data_sent..................: 74 MB  1.9 MB/s
+     http_req_blocked...........: avg=2.63µs  min=0s      med=2µs     max=16.48ms  p(90)=3µs     p(95)=4µs
+     http_req_connecting........: avg=97ns    min=0s      med=0s      max=587µs    p(90)=0s      p(95)=0s
+     http_req_duration..........: avg=14.11ms min=10.09ms med=10.69ms max=132.4ms  p(90)=20.78ms p(95)=21.38ms
+     http_req_receiving.........: avg=31.83µs min=8µs     med=24µs    max=88.88ms  p(90)=47µs    p(95)=59µs
+     http_req_sending...........: avg=13.43µs min=4µs     med=11µs    max=34.97ms  p(90)=18µs    p(95)=25µs
+     http_req_tls_handshaking...: avg=0s      min=0s      med=0s      max=0s       p(90)=0s      p(95)=0s
+     http_req_waiting...........: avg=14.07ms min=10.07ms med=10.64ms max=131.97ms p(90)=20.72ms p(95)=21.32ms
+     http_reqs..................: 567189 14172.982558/s
+     iteration_duration.........: avg=42.6ms  min=40.5ms  med=41.83ms max=235.53ms p(90)=44.22ms p(95)=45.5ms
+     iterations.................: 189063 4724.327519/s
+     vus........................: 1      min=1   max=230
+     vus_max....................: 230    min=230 max=230
 ```

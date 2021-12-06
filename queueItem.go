@@ -58,8 +58,8 @@ func (i *QueueItem) ReEnqueueItem(sq *SuperQueue) error {
 		}
 		i.InFlight = false
 		sq.InFlightMapLock.Lock()
-		defer sq.InFlightMapLock.Unlock()
 		delete(*sq.InFlightItems, i.ID)
+		sq.InFlightMapLock.Unlock()
 	}
 	// Write queued state to DB
 	err := i.addItemState(sq.Namespace, "queued", time.Now(), nil, nil, nil)
@@ -91,8 +91,8 @@ func (i *QueueItem) AckItem(sq *SuperQueue) error {
 	i.addItemState(sq.Namespace, "acked", time.Now(), nil, nil, nil)
 	// Remove from inflight table
 	sq.InFlightMapLock.Lock()
-	defer sq.InFlightMapLock.Unlock()
 	delete(*sq.InFlightItems, i.ID)
+	sq.InFlightMapLock.Unlock()
 	// Remove from delay mapmap
 	sq.DelayMapMap.DeleteItem(i)
 	return nil
@@ -107,8 +107,8 @@ func (i *QueueItem) NackItem(sq *SuperQueue) error {
 	}
 	// Remove from inflight table
 	sq.InFlightMapLock.Lock()
-	defer sq.InFlightMapLock.Unlock()
 	delete(*sq.InFlightItems, i.ID)
+	sq.InFlightMapLock.Unlock()
 	// Remove from old spot in delayed mapmap
 	sq.DelayMapMap.DeleteItem(i)
 	// TODO: Discard if max attempts exceeded

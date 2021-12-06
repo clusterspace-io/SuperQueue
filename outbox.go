@@ -15,6 +15,7 @@ func NewOutbox(sq *SuperQueue, bufferLength int64) *Outbox {
 
 // Adds an item to the outbox in memory.
 func (o *Outbox) Add(item *QueueItem) {
+	// TODO: Handle when full
 	o.MessageChan <- item
 }
 
