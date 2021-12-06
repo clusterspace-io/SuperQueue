@@ -2,7 +2,9 @@ package main
 
 import (
 	"SuperQueue/logger"
+	"fmt"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -39,10 +41,19 @@ func StartHTTPServer() {
 	Server.Echo.Use(middleware.Logger())
 	Server.Echo.Validator = &CustomValidator{validator: validator.New()}
 
+	// Count requests
+	Server.Echo.Use(IncrementCounter)
 	Server.registerRoutes()
 
 	logger.Info("Starting Host API on port 8080")
 	Server.Echo.Logger.Fatal(Server.Echo.Start(":8080"))
+}
+
+func IncrementCounter(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		atomic.AddInt64(&TotalRequests, 1)
+		return next(c)
+	}
 }
 
 func (s *HTTPServer) registerRoutes() {
@@ -55,6 +66,8 @@ func (s *HTTPServer) registerRoutes() {
 
 	s.Echo.POST("/ack/:recordID", Post_AckRecord)
 	s.Echo.POST("/nack/:recordID", Post_NackRecord)
+
+	s.Echo.GET("/metrics", Get_Metrics)
 }
 
 func ValidateRequest(c echo.Context, s interface{}) error {
@@ -68,9 +81,11 @@ func ValidateRequest(c echo.Context, s interface{}) error {
 }
 
 func Post_Record(c echo.Context) error {
+	defer atomic.AddInt64(&PostRecordRequests, 1)
 	body := new(PostRecordRequest)
 	if err := ValidateRequest(c, body); err != nil {
 		logger.Debug("Validation failed ", err)
+		atomic.AddInt64(&HTTP400s, 1)
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid body")
 	}
 
@@ -95,17 +110,21 @@ func Post_Record(c echo.Context) error {
 		BackoffMultiplier:      2,
 		Version:                0,
 	}, delayTime)
+	// TODO: add full queue handling with metrics incrementing
 
 	return c.String(http.StatusCreated, "")
 }
 
 func Get_Record(c echo.Context) error {
+	defer atomic.AddInt64(&GetRecordRequests, 1)
 	item, err := SQ.Dequeue()
 	if err != nil {
+		atomic.AddInt64(&HTTP500s, 1)
 		return c.String(500, "Failed to dequeue record")
 	}
 	// Empty
 	if item == nil {
+		atomic.AddInt64(&EmptyQueueResponses, 1)
 		return c.String(http.StatusNoContent, "Empty")
 	}
 	return c.JSON(200, map[string]string{
@@ -117,6 +136,7 @@ func Get_Record(c echo.Context) error {
 func Post_AckRecord(c echo.Context) error {
 	recordID := c.Param("recordID")
 	if recordID == "" {
+		atomic.AddInt64(&HTTP400s, 1)
 		return c.String(400, "No record ID given")
 	}
 
@@ -125,12 +145,14 @@ func Post_AckRecord(c echo.Context) error {
 	SQ.InFlightMapLock.Unlock()
 	// Check if record exists
 	if !exists {
+		atomic.AddInt64(&AckMisses, 1)
 		return c.String(404, "Record not found")
 	}
 
 	// Ack the record
 	err := item.AckItem(SQ)
 	if err != nil {
+		atomic.AddInt64(&HTTP500s, 1)
 		return c.String(500, "Failed to ack record")
 	}
 	return c.String(200, "")
@@ -139,12 +161,14 @@ func Post_AckRecord(c echo.Context) error {
 func Post_NackRecord(c echo.Context) error {
 	recordID := c.Param("recordID")
 	if recordID == "" {
+		atomic.AddInt64(&HTTP400s, 1)
 		return c.String(400, "No record ID given")
 	}
 
 	item, exists := (*SQ.InFlightItems)[recordID]
 	// Check if record exists
 	if !exists {
+		atomic.AddInt64(&NackMisses, 1)
 		return c.String(404, "Record not found")
 	}
 
@@ -152,7 +176,30 @@ func Post_NackRecord(c echo.Context) error {
 	err := item.NackItem(SQ)
 	if err != nil {
 		logger.Error(err)
+		atomic.AddInt64(&HTTP500s, 1)
 		return c.String(500, "Failed to ack record")
 	}
 	return c.String(200, "")
+}
+
+func Get_Metrics(c echo.Context) error {
+	finalString := ""
+	finalString += fmt.Sprintf("#TYPE in_flight_messages gauge\n#HELP in_flight_messages The current number of in-flight messages\nin_flight_messages %d", atomic.LoadInt64(&InFlightMessages)) + "\n"
+	finalString += fmt.Sprintf("#TYPE total_in_flight_messages counter\n#HELP total_in_flight_messages The total number of in-flight messages\nin_flight_messages %d", atomic.LoadInt64(&TotalInFlightMessages)) + "\n"
+	finalString += fmt.Sprintf("#TYPE queued_messages gauge\n#HELP queued_messages The total number of queued messages\nqueued_messages %d", atomic.LoadInt64(&QueuedMessages)) + "\n"
+	finalString += fmt.Sprintf("#TYPE total_queued_messages counter\n#HELP total_queued_messages The total number of queued messages\nqueued_messages %d", atomic.LoadInt64(&TotalQueuedMessages)) + "\n"
+	finalString += fmt.Sprintf("#TYPE delayed_messages gauge\n#HELP delayed_messages The current number of delayed messages\ndelayed_messages %d", atomic.LoadInt64(&DelayedMessages)) + "\n"
+	finalString += fmt.Sprintf("#TYPE timedout_messages counter\n#HELP timedout_messages The total number of timedout messages\ntimedout_messages %d", atomic.LoadInt64(&TimedoutMessages)) + "\n"
+	finalString += fmt.Sprintf("#TYPE acked_messages counter\n#HELP acked_messages The total number of acknowledged messages\nacked_messages %d", atomic.LoadInt64(&AckedMessages)) + "\n"
+	finalString += fmt.Sprintf("#TYPE nacked_messages counter\n#HELP nacked_messages The total number of negatively messages\nnacked_messages %d", atomic.LoadInt64(&NackedMessages)) + "\n"
+	finalString += fmt.Sprintf("#TYPE post_record_reqs counter\n#HELP post_record_reqs The total number of POST /record requests\npost_record_reqs %d", atomic.LoadInt64(&PostRecordRequests)) + "\n"
+	finalString += fmt.Sprintf("#TYPE get_record_reqs counter\n#HELP get_record_reqs The total number of GET /record requests\nget_record_reqs %d", atomic.LoadInt64(&GetRecordRequests)) + "\n"
+	finalString += fmt.Sprintf("#TYPE ack_misses counter\n#HELP ack_misses The total number of ack requests that fail to ack a message\nack_misses %d", atomic.LoadInt64(&AckMisses)) + "\n"
+	finalString += fmt.Sprintf("#TYPE nack_misses counter\n#HELP nack_misses The total number of nack requests that fail to nack a message\nnack_misses %d", atomic.LoadInt64(&NackMisses)) + "\n"
+	finalString += fmt.Sprintf("#TYPE empty_queue_responses counter\n#HELP empty_queue_responses The total number of GET /record requests that result in an empty queue response\nempty_queue_responses %d", atomic.LoadInt64(&EmptyQueueResponses)) + "\n"
+	finalString += fmt.Sprintf("#TYPE full_queue_responses counter\n#HELP full_queue_responses The total number of GET /record requests that result in a full queue response\nfull_queue_responses %d", atomic.LoadInt64(&EmptyQueueResponses)) + "\n"
+	finalString += fmt.Sprintf("#TYPE http_total_requests counter\n#HELP http_total_requests The total number of http requests processed returning any code\nhttp_total_requests %d", atomic.LoadInt64(&TotalRequests)) + "\n"
+	finalString += fmt.Sprintf("#TYPE http_500s counter\n#HELP http_500s The total number of returned 500 http responses\nhttp_500s %d", atomic.LoadInt64(&HTTP500s)) + "\n"
+	finalString += fmt.Sprintf("#TYPE http_400s counter\n#HELP http_400s The total number of returned 400 http responses\nhttp_400s %d", atomic.LoadInt64(&HTTP400s))
+	return c.String(200, finalString)
 }

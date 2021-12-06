@@ -3,6 +3,7 @@ package main
 import (
 	"SuperQueue/logger"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -37,6 +38,7 @@ func NewSuperQueue(namespace string, bucketMS, queueLen int64) *SuperQueue {
 			for _, i := range m {
 				// logger.Debug("Found item: ", i)
 				// In testing this as a goroutine had no difference in processing speed
+				// TODO: Decrement delayed message if needed
 				i.ReEnqueueItem(SQ)
 			}
 			// logger.Debug("Deleting bucket ", bucket)
@@ -100,6 +102,10 @@ func (sq *SuperQueue) Dequeue() (*QueueItem, error) {
 	sq.InFlightMapLock.Unlock()
 	// Add to delay map
 	sq.DelayMapMap.AddItem(item, time.Now().Add(time.Duration(item.InFlightTimeoutSeconds)*time.Second).UnixMilli())
+	// Update metrics
+	atomic.AddInt64(&InFlightMessages, 1)
+	atomic.AddInt64(&TotalInFlightMessages, 1)
+	atomic.AddInt64(&QueuedMessages, -1)
 	// Return
 	return item, nil
 }
