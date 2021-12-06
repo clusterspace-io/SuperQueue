@@ -30,7 +30,7 @@ func TestMapMapScale(t *testing.T) {
 	fmt.Println("\nTesting range consumption of", MAPMAP_RANGE, "items")
 	s = time.Now()
 	m.ConsumeRange(time.Now().UnixMilli(), time.Now().Add(time.Duration(MAPMAP_RANGE)*time.Millisecond).UnixMilli(), func(bkey int64, mi map[string]*QueueItem) {
-		for _, _ = range mi {
+		for range mi {
 			// spin
 		}
 	})
