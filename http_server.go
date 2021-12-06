@@ -96,10 +96,7 @@ func Post_Record(c echo.Context) error {
 		Version:                0,
 	}, delayTime)
 
-	return c.JSON(200, PostRecordResponse{
-		ID:        itemID,
-		EnqueueAt: delayTime,
-	})
+	return c.String(http.StatusCreated, "")
 }
 
 func Get_Record(c echo.Context) error {
