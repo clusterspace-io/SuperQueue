@@ -22,6 +22,7 @@ The goal of SuperQueues was to appeal to as many use cases as possible by buildi
 - Super useful features (custom exponential backoff, delayed sending, all per-message)
 - Non-blocking (messages don't prevent each other from being sent)
 - At-least-once processing (messages will requeue until they are acknowledged or exceed their lifetime)
+- Durability (when we say we've got your message, it is written durably)
 
 ## Inspiration
 
@@ -39,6 +40,6 @@ However I've implemented some stark changes from their architecture:
 
 I've designed these job queues to be pull-based, meaning any worker can integrate with it (this dramatically reduces the amount of code required). This required designing more efficient data structures for parsing timestamp based data (see MapMaps for more).
 
-In their design they use MySQL, I chose ScyllaDB (I've also done tests with CRDB). I think using something that is write-optimized is obvious here, as for all usage by disaster recovery we are write only. Furthermore being able to scale out linearly is awesome. Consistency is not needed, because the concept of a single processor per DB (namespace/keyspace in the context of Scylla) guarantees that only we will be writing to it and every write has a unique primary key (no conflict issues). Furthermore during disaster recovery we can read with `ALL` consistency if needed, but by the time recovery would start records should have fully propagated, but we can run with `ALL` anyway just to be sure.
+In their design they use MySQL, I chose ScyllaDB (I've also done tests with CRDB). I think using something that is write-optimized is obvious here, as for all usage by disaster recovery we are write only. Furthermore being able to scale out linearly is awesome. Consistency is not needed, because the concept of a single processor per DB (namespace/keyspace in the context of Scylla) guarantees that only we will be writing to it and every write has a unique primary key (no conflict issues). Furthermore during disaster recovery we can read with `ALL` consistency if needed, but by the time recovery would start records should have fully propagated, but we can run with `ALL` anyway just to be sure. `QUORUM` (with RF=3) or `TWO` write consistency gives us sufficient durability (we use `TWO` in practice).
 
 I tried using CockroachDB with both range and hash partitioning, but running on my laptop any real load would induce 100ms> inserts, Scylla could go up to 10ms. Both should be within single digit ms (Scylla even going under 1ms) on real DB clusters on real hardware, however ScyllaDB should scale better with the same hardware so that is the choice for now, plus consistency is not needed. Changing the DB is very easy since only a few queries need to be changed (2 writes, and 1 read). In theory something in-memory like Redis could work well too, but you'll have to concern yourself with data set size (adding TTLs and archiving data could be reasonable since there is a max lifetime to records).

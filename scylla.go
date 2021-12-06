@@ -68,7 +68,7 @@ func DBConnect() {
 		cluster = gocql.NewCluster(strings.Split(scyllaHost, ",")...)
 	}
 	cluster.Keyspace = "sq_ksp"
-	cluster.Consistency = gocql.One
+	cluster.Consistency = gocql.Two
 
 	// Increase timeout if testing
 	if os.Getenv("TEST_MODE") == "true" {
