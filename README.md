@@ -51,6 +51,10 @@ SuperQueue can be used as is, but doesn't offer much protection. It exposes metr
 
 For example, managed SuperQueue will use the metrics, custom request router, and service discovery to offer serverless SuperQueues. It will scale up based on metrics, and route randomly to partitions. It will create more partitions as needed, as well as drain existing ones into others during scale down. The request router will handle auth and rate limiting as well.
 
+Another example is handling when certain partitions are empty or full. If a partition is empty, it can ask around other partitions before returning the client request. Same with whether partitions are full (although we should avoid getting there at all costs).
+
+SuperQueues being virtual also allows it to scale extremely quickly. If the resources are ready, a new partition can come up in less than 200ms (including registration with service discovery, 200ms from nothing to accepting requests).
+
 SuperQueues could also be used in a self hosted manner to allow flexibility how load balancing and scaling is done. It also allows establishing what ever limits are desired, and what happens during extreme back pressure.
 
 It could even be used internally as a golang package.
