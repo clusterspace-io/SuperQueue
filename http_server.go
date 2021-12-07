@@ -46,8 +46,8 @@ func StartHTTPServer() {
 	Server.Echo.Use(IncrementCounter)
 	Server.registerRoutes()
 
-	logger.Info("Starting Host API on port 8080")
-	Server.Echo.Logger.Fatal(Server.Echo.Start(":8080"))
+	logger.Info("Starting SuperQueue on port ", GetEnvOrDefault("HTTP_PORT", "8080"))
+	Server.Echo.Logger.Fatal(Server.Echo.Start(":" + GetEnvOrDefault("HTTP_PORT", "8080")))
 }
 
 func IncrementCounter(next echo.HandlerFunc) echo.HandlerFunc {
