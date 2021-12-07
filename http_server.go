@@ -173,7 +173,7 @@ func Get_Record(c echo.Context) error {
 		return c.String(http.StatusNoContent, "Empty")
 	}
 	return c.JSON(200, map[string]string{
-		"id":      SQ.Partition + item.ID,
+		"id":      SQ.Partition + "_" + item.ID,
 		"payload": string(item.Payload),
 	})
 }
@@ -185,7 +185,7 @@ func Post_AckRecord(c echo.Context) error {
 		return c.String(400, "No record ID given")
 	}
 
-	itemID := strings.Split(recordID, SQ.Partition)[1]
+	itemID := strings.Split(recordID, "_")[1]
 	if itemID == "" {
 		return c.String(http.StatusBadRequest, "Bad record ID given")
 	}
@@ -215,7 +215,7 @@ func Post_NackRecord(c echo.Context) error {
 		return c.String(400, "No record ID given")
 	}
 
-	itemID := strings.Split(recordID, SQ.Partition)[1]
+	itemID := strings.Split(recordID, "_")[1]
 	if itemID == "" {
 		return c.String(http.StatusBadRequest, "Bad record ID given")
 	}
