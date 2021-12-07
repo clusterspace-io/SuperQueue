@@ -12,7 +12,7 @@ var (
 func main() {
 	// logger.Logger.Logger.SetLevel(logrus.DebugLevel)
 	logger.Info("Starting SuperQueue")
-	SQ = NewSuperQueue("test-ns", 5, 2<<20)
+	SQ = NewSuperQueue("test-ns", "partition1", 5, 2<<20)
 	go func() {
 		StartHTTPServer()
 	}()

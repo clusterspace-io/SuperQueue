@@ -4,6 +4,7 @@ import (
 	"SuperQueue/logger"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -172,7 +173,7 @@ func Get_Record(c echo.Context) error {
 		return c.String(http.StatusNoContent, "Empty")
 	}
 	return c.JSON(200, map[string]string{
-		"id":      item.ID,
+		"id":      SQ.Partition + item.ID,
 		"payload": string(item.Payload),
 	})
 }
@@ -184,8 +185,13 @@ func Post_AckRecord(c echo.Context) error {
 		return c.String(400, "No record ID given")
 	}
 
+	itemID := strings.Split(recordID, SQ.Partition)[1]
+	if itemID == "" {
+		return c.String(http.StatusBadRequest, "Bad record ID given")
+	}
+
 	SQ.InFlightMapLock.Lock()
-	item, exists := (*SQ.InFlightItems)[recordID]
+	item, exists := (*SQ.InFlightItems)[itemID]
 	SQ.InFlightMapLock.Unlock()
 	// Check if record exists
 	if !exists {
@@ -209,7 +215,12 @@ func Post_NackRecord(c echo.Context) error {
 		return c.String(400, "No record ID given")
 	}
 
-	item, exists := (*SQ.InFlightItems)[recordID]
+	itemID := strings.Split(recordID, SQ.Partition)[1]
+	if itemID == "" {
+		return c.String(http.StatusBadRequest, "Bad record ID given")
+	}
+
+	item, exists := (*SQ.InFlightItems)[itemID]
 	// Check if record exists
 	if !exists {
 		atomic.AddInt64(&NackMisses, 1)

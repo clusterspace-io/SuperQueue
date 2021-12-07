@@ -13,16 +13,17 @@ type SuperQueue struct {
 	DelayConsumer   *MapMapConsumer
 	Outbox          *Outbox
 	InFlightMapLock sync.RWMutex
-	// The combination of the queue name and partition
-	Namespace string
+	Namespace       string
+	Partition       string
 }
 
-func NewSuperQueue(namespace string, bucketMS, queueLen int64) *SuperQueue {
+func NewSuperQueue(namespace, partition string, bucketMS, queueLen int64) *SuperQueue {
 	dmm := NewMapMap(bucketMS)
 	q := &SuperQueue{
 		DelayMapMap:     dmm, // 5ms default
 		InFlightItems:   &map[string]*QueueItem{},
 		InFlightMapLock: sync.RWMutex{},
+		Partition:       partition,
 	}
 
 	q.Outbox = NewOutbox(q, queueLen)
