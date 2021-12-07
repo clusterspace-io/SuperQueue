@@ -87,10 +87,10 @@ func (s *HTTPServer) registerRoutes() {
 	})
 
 	s.Echo.POST("/record", Post_Record, LatencyCounter)
-	s.Echo.GET("/record", Get_Record)
+	s.Echo.GET("/record", Get_Record, LatencyCounter)
 
-	s.Echo.POST("/ack/:recordID", Post_AckRecord)
-	s.Echo.POST("/nack/:recordID", Post_NackRecord)
+	s.Echo.POST("/ack/:recordID", Post_AckRecord, LatencyCounter)
+	s.Echo.POST("/nack/:recordID", Post_NackRecord, LatencyCounter)
 
 	s.Echo.GET("/metrics", Get_Metrics)
 }
