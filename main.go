@@ -2,6 +2,7 @@ package main
 
 import (
 	"SuperQueue/logger"
+	"os"
 	"time"
 )
 
@@ -12,7 +13,12 @@ var (
 func main() {
 	// logger.Logger.Logger.SetLevel(logrus.DebugLevel)
 	logger.Info("Starting SuperQueue")
-	SQ = NewSuperQueue("test-ns", "partition1", 5, 2<<20)
+	partition := os.Getenv("PARTITION")
+	if partition == "" {
+		logger.Error("Failed to provide a partition using the PARTITION env var, exiting")
+		os.Exit(1)
+	}
+	SQ = NewSuperQueue("test-ns", partition, 5, 2<<20)
 	go func() {
 		StartHTTPServer()
 	}()
