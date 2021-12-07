@@ -56,27 +56,46 @@ func IncrementCounter(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-func LatencyCounter(next echo.HandlerFunc) echo.HandlerFunc {
+func PostRecordLatencyCounter(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		start := time.Now()
 		if err := next(c); err != nil {
 			c.Error(err)
 		}
-		if c.Request().RequestURI == "/record" {
-			switch c.Request().Method {
-			case "GET":
-				atomic.AddInt64(&GetRecordLatency, int64(time.Since(start)))
-			case "POST":
-				atomic.AddInt64(&PostRecordLatency, int64(time.Since(start)))
+		atomic.AddInt64(&PostRecordLatency, int64(time.Since(start)))
+		return nil
+	}
+}
 
-			default:
-				c.Error(fmt.Errorf("unknown method counted for latency error"))
-			}
-		} else if c.Request().RequestURI == "/ack" {
-			atomic.AddInt64(&AckLatency, int64(time.Since(start)))
-		} else if c.Request().RequestURI == "/nack" {
-			atomic.AddInt64(&NackLatency, int64(time.Since(start)))
+func GetRecordLatencyCounter(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		start := time.Now()
+		if err := next(c); err != nil {
+			c.Error(err)
 		}
+		atomic.AddInt64(&GetRecordLatency, int64(time.Since(start)))
+		return nil
+	}
+}
+
+func AckRecordLatencyCounter(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		start := time.Now()
+		if err := next(c); err != nil {
+			c.Error(err)
+		}
+		atomic.AddInt64(&AckLatency, int64(time.Since(start)))
+		return nil
+	}
+}
+
+func NackRecordLatencyCounter(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		start := time.Now()
+		if err := next(c); err != nil {
+			c.Error(err)
+		}
+		atomic.AddInt64(&NackLatency, int64(time.Since(start)))
 		return nil
 	}
 }
@@ -86,11 +105,11 @@ func (s *HTTPServer) registerRoutes() {
 		return c.String(200, "y")
 	})
 
-	s.Echo.POST("/record", Post_Record, LatencyCounter)
-	s.Echo.GET("/record", Get_Record, LatencyCounter)
+	s.Echo.POST("/record", Post_Record, PostRecordLatencyCounter)
+	s.Echo.GET("/record", Get_Record, GetRecordLatencyCounter)
 
-	s.Echo.POST("/ack/:recordID", Post_AckRecord, LatencyCounter)
-	s.Echo.POST("/nack/:recordID", Post_NackRecord, LatencyCounter)
+	s.Echo.POST("/ack/:recordID", Post_AckRecord, AckRecordLatencyCounter)
+	s.Echo.POST("/nack/:recordID", Post_NackRecord, NackRecordLatencyCounter)
 
 	s.Echo.GET("/metrics", Get_Metrics)
 }
