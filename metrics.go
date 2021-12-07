@@ -10,7 +10,9 @@ var (
 	AckedMessages         int64 = 0
 	NackedMessages        int64 = 0
 	PostRecordRequests    int64 = 0
+	PostRecordLatency     int64 = 0
 	GetRecordRequests     int64 = 0
+	GetRecordLatency      int64 = 0
 	AckMisses             int64 = 0
 	NackMisses            int64 = 0
 	EmptyQueueResponses   int64 = 0
@@ -18,4 +20,6 @@ var (
 	TotalRequests         int64 = 0
 	HTTP500s              int64 = 0
 	HTTP400s              int64 = 0
+	AckLatency            int64 = 0
+	NackLatency           int64 = 0
 )

@@ -56,12 +56,37 @@ func IncrementCounter(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
+func LatencyCounter(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		start := time.Now()
+		if err := next(c); err != nil {
+			c.Error(err)
+		}
+		if c.Request().RequestURI == "/record" {
+			switch c.Request().Method {
+			case "GET":
+				atomic.AddInt64(&GetRecordLatency, int64(time.Since(start)))
+			case "POST":
+				atomic.AddInt64(&PostRecordLatency, int64(time.Since(start)))
+
+			default:
+				c.Error(fmt.Errorf("unknown method counted for latency error"))
+			}
+		} else if c.Request().RequestURI == "/ack" {
+			atomic.AddInt64(&AckLatency, int64(time.Since(start)))
+		} else if c.Request().RequestURI == "/nack" {
+			atomic.AddInt64(&NackLatency, int64(time.Since(start)))
+		}
+		return nil
+	}
+}
+
 func (s *HTTPServer) registerRoutes() {
 	s.Echo.GET("/hc", func(c echo.Context) error {
 		return c.String(200, "y")
 	})
 
-	s.Echo.POST("/record", Post_Record)
+	s.Echo.POST("/record", Post_Record, LatencyCounter)
 	s.Echo.GET("/record", Get_Record)
 
 	s.Echo.POST("/ack/:recordID", Post_AckRecord)
@@ -193,13 +218,17 @@ func Get_Metrics(c echo.Context) error {
 	finalString += fmt.Sprintf("#TYPE acked_messages counter\n#HELP acked_messages The total number of acknowledged messages\nacked_messages %d", atomic.LoadInt64(&AckedMessages)) + "\n"
 	finalString += fmt.Sprintf("#TYPE nacked_messages counter\n#HELP nacked_messages The total number of negatively messages\nnacked_messages %d", atomic.LoadInt64(&NackedMessages)) + "\n"
 	finalString += fmt.Sprintf("#TYPE post_record_reqs counter\n#HELP post_record_reqs The total number of POST /record requests\npost_record_reqs %d", atomic.LoadInt64(&PostRecordRequests)) + "\n"
+	finalString += fmt.Sprintf("#TYPE post_record_latency counter\n#HELP post_record_latency The sum of POST /record latency\npost_record_latency %d", atomic.LoadInt64(&PostRecordLatency)) + "\n"
 	finalString += fmt.Sprintf("#TYPE get_record_reqs counter\n#HELP get_record_reqs The total number of GET /record requests\nget_record_reqs %d", atomic.LoadInt64(&GetRecordRequests)) + "\n"
+	finalString += fmt.Sprintf("#TYPE get_record_latency counter\n#HELP get_record_latency The sum of GET /record latencies\nget_record_latency %d", atomic.LoadInt64(&GetRecordLatency)) + "\n"
 	finalString += fmt.Sprintf("#TYPE ack_misses counter\n#HELP ack_misses The total number of ack requests that fail to ack a message\nack_misses %d", atomic.LoadInt64(&AckMisses)) + "\n"
 	finalString += fmt.Sprintf("#TYPE nack_misses counter\n#HELP nack_misses The total number of nack requests that fail to nack a message\nnack_misses %d", atomic.LoadInt64(&NackMisses)) + "\n"
 	finalString += fmt.Sprintf("#TYPE empty_queue_responses counter\n#HELP empty_queue_responses The total number of GET /record requests that result in an empty queue response\nempty_queue_responses %d", atomic.LoadInt64(&EmptyQueueResponses)) + "\n"
 	finalString += fmt.Sprintf("#TYPE full_queue_responses counter\n#HELP full_queue_responses The total number of GET /record requests that result in a full queue response\nfull_queue_responses %d", atomic.LoadInt64(&EmptyQueueResponses)) + "\n"
 	finalString += fmt.Sprintf("#TYPE http_total_requests counter\n#HELP http_total_requests The total number of http requests processed returning any code\nhttp_total_requests %d", atomic.LoadInt64(&TotalRequests)) + "\n"
 	finalString += fmt.Sprintf("#TYPE http_500s counter\n#HELP http_500s The total number of returned 500 http responses\nhttp_500s %d", atomic.LoadInt64(&HTTP500s)) + "\n"
-	finalString += fmt.Sprintf("#TYPE http_400s counter\n#HELP http_400s The total number of returned 400 http responses\nhttp_400s %d", atomic.LoadInt64(&HTTP400s))
+	finalString += fmt.Sprintf("#TYPE http_400s counter\n#HELP http_400s The total number of returned 400 http responses\nhttp_400s %d", atomic.LoadInt64(&HTTP400s)) + "\n"
+	finalString += fmt.Sprintf("#TYPE ack_latency counter\n#HELP ack_latency The sum of POST /ack latency. Use both ack_misses and acked_messages to calculate latency per request\nack_latency %d", atomic.LoadInt64(&AckLatency)) + "\n"
+	finalString += fmt.Sprintf("#TYPE nack_latency counter\n#HELP nack_latency The sum of POST /nack latency. Use both nack_misses and nacked_messages to calculate latency per request\nnack_latency %d", atomic.LoadInt64(&NackLatency))
 	return c.String(200, finalString)
 }
