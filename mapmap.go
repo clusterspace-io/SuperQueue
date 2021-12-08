@@ -26,14 +26,16 @@ func NewMapMap(intervalMS int64) *MapMap {
 func (m *MapMap) ConsumeRange(lowerbound, upperbound int64, consumerFunc func(int64, map[string]*QueueItem)) int64 {
 	var lastItem int64 = -1
 	upperBucket := m.CalculateBucket(upperbound)
-	lowerBucket := m.CalculateBucket(lowerbound)
-	for i := lowerBucket; i <= upperBucket; i += m.Interval {
+	// lowerBucket := m.CalculateBucket(lowerbound)
+	var i int64
+	for i = 0; i <= upperBucket; i += m.Interval {
 		// Calculate the bucket to get
 		bkey := m.CalculateBucket(i)
 		m.m.Lock()
 		if _, exists := m.Map[bkey]; exists {
-			go consumerFunc(bkey, m.Map[bkey])
+			consumerFunc(bkey, m.Map[bkey])
 		}
+		delete(m.Map, bkey)
 		m.m.Unlock()
 		lastItem = bkey
 	}

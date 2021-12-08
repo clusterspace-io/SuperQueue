@@ -546,3 +546,41 @@ default ✓ [======================================] 000/230 VUs  40s
      vus........................: 1      min=1   max=230
      vus_max....................: 230    min=230 max=230
 ```
+
+### full.js 230 VUs no pause with real db new concurrency model
+
+```
+ dangoodman: ~/clusterSpaceCode/SuperQueue/loadtest git:(master) ✗ k6 run full.js                      4:42PM
+
+          /\      |‾‾| /‾‾/   /‾‾/
+     /\  /  \     |  |/  /   /  /
+    /  \/    \    |     (   /   ‾‾\
+   /          \   |  |\  \ |  (‾)  |
+  / __________ \  |__| \__\ \_____/ .io
+
+  execution: local
+     script: full.js
+     output: -
+
+  scenarios: (100.00%) 1 scenario, 230 max VUs, 1m10s max duration (incl. graceful stop):
+           * default: Up to 230 looping VUs for 40s over 3 stages (gracefulRampDown: 30s, gracefulStop: 30s)
+
+
+running (0m40.0s), 000/230 VUs, 218242 complete and 0 interrupted iterations
+default ✓ [======================================] 000/230 VUs  40s
+
+     data_received..............: 95 MB  2.4 MB/s
+     data_sent..................: 86 MB  2.2 MB/s
+     http_req_blocked...........: avg=2.28µs  min=0s     med=2µs     max=4.95ms   p(90)=3µs     p(95)=3µs
+     http_req_connecting........: avg=81ns    min=0s     med=0s      max=1.34ms   p(90)=0s      p(95)=0s
+     http_req_duration..........: avg=12.23ms min=130µs  med=10.14ms max=631.95ms p(90)=20.8ms  p(95)=24.77ms
+     http_req_receiving.........: avg=24.26µs min=8µs    med=19µs    max=18.82ms  p(90)=29µs    p(95)=40µs
+     http_req_sending...........: avg=11.58µs min=4µs    med=9µs     max=13.11ms  p(90)=14µs    p(95)=18µs
+     http_req_tls_handshaking...: avg=0s      min=0s     med=0s      max=0s       p(90)=0s      p(95)=0s
+     http_req_waiting...........: avg=12.19ms min=104µs  med=10.11ms max=631.91ms p(90)=20.77ms p(95)=24.73ms
+     http_reqs..................: 654538 16353.537712/s
+     iteration_duration.........: avg=36.9ms  min=3.35ms med=34.93ms max=1.03s    p(90)=49.9ms  p(95)=56.49ms
+     iterations.................: 218242 5452.744955/s
+     vus........................: 1      min=1   max=230
+     vus_max....................: 230    min=230 max=230
+```

@@ -6,6 +6,7 @@ Super Simple, Super Scalable, Super Speedy, Super Queue.
 - [Motivation](#motivation)
 - [Inspiration](#inspiration)
 - [Using as a Primitive](#using-as-a-primitive)
+- [Why MapMaps](#why-mapmaps)
 - [Get Started](#get-started)
   - [Running ScyllaDB](#running-scylladb)
   - [Running SuperQueue (single partition)](#running-superqueue-single-partition)
@@ -69,6 +70,34 @@ SuperQueues being virtual also allows it to scale extremely quickly. If the reso
 SuperQueues could also be used in a self hosted manner to allow flexibility how load balancing and scaling is done. It also allows establishing what ever limits are desired, and what happens during extreme back pressure.
 
 It could even be used internally as a golang package.
+
+## Why MapMaps
+
+In order to maintain high performance at scale, a data structure was needed that could efficiently scan over timestamp-based data that was not append only, while also allowing for O(1) access (for ack/nack of in-flight timeouts). In order to accommodate this, I created the MapMap (I assume I created this, I haven't seen it used anywhere else like this).
+
+While the idea of nested maps is not novel, I believe my implementation is. The reason it is called a MapMap is because it consists of nested maps. In Go, it looks like this:
+
+```go
+type MapMap map[int64]map[string]interface{}
+```
+
+The outside map serves as a configurable time bucket system. The keys are bucket epoch timestamps in milliseconds. This allows for rough ordering (not maintained within the bucket) of bucketed data. So for example, you might want to bucket your data every 5ms, meaning that in a single second you would have buckets of `...0`, `...5`, `...10`, and so on.
+
+Within these buckets exist maps in which the keys are unique document identifiers.
+
+In Go, we can iterate over a map in O(N) list like a list, so the basic concept is this:
+
+1. We have a MapMapConsumer that on some interval (ideally matching the bucket interval) consume all bucket from the past, up to now. This allows for items being placed in the past not getting lost, and it will consume everything up to the current timestamp.
+2. For eac bucket it runs some `ConsumerFunc`, which in this case will queue up the items by iterating over the map in O(N) time.
+3. Consumer will delete the bucket
+
+In-flight items also get their timeouts placed in this MapMap. When an item is acked or nacked, we can remove it from the MapMap in O(1) by calculating it's bucket, then removing the item from the map in that bucket. We also delete it from an in-flight map we also keep track of.
+
+So this means we can iterate over data at a configurable interval, data is ordered by interval (not ordered within), can be placed arbitrarily in the past or future (to really any time in the future), and all parsed in O(N) where N is the number of items that exist up to now in the map. By doing up to current time we also account for any pauses or increased latency in processing (we never miss anything).
+
+Oh yeah and we do this way faster than any b-tree or LSM tree could.
+
+Besides the downside of rough ordering (there is no reason we need exact ordering, besides its configurable by changing the bucket interval), we get O(N) where we want O(N), and O(1) where we want O(1), a pretty great tradeoff. The term MapMap also conveniently lines up with the similar HyperLogLog name, which also does rough calculations rather than exact.
 
 ## Get Started
 
