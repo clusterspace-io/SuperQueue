@@ -2,6 +2,7 @@
 
 - Added optional delay on POST /nack
 - Fixed lock bug
+- Added attempts to get record response
 
 ### 0.1.0
 
