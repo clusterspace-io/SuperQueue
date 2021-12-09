@@ -87,13 +87,13 @@ Within these buckets exist maps in which the keys are unique document identifier
 
 In Go, we can iterate over a map in O(N) list like a list, so the basic concept is this:
 
-1. We have a MapMapConsumer that on some interval (ideally matching the bucket interval) consume all bucket from the past, up to now. This allows for items being placed in the past not getting lost, and it will consume everything up to the current timestamp.
+1. We have a MapMapConsumer that on some interval (ideally matching the bucket interval) consume all bucket from the last iterate time up to now. This will consume everything up to the current timestamp no matter any delay or latency in processing.
 2. For eac bucket it runs some `ConsumerFunc`, which in this case will queue up the items by iterating over the map in O(N) time.
 3. Consumer will delete the bucket
 
 In-flight items also get their timeouts placed in this MapMap. When an item is acked or nacked, we can remove it from the MapMap in O(1) by calculating it's bucket, then removing the item from the map in that bucket. We also delete it from an in-flight map we also keep track of.
 
-So this means we can iterate over data at a configurable interval, data is ordered by interval (not ordered within), can be placed arbitrarily in the past or future (to really any time in the future), and all parsed in O(N) where N is the number of items that exist up to now in the map. By doing up to current time we also account for any pauses or increased latency in processing (we never miss anything).
+So this means we can iterate over data at a configurable interval, data is ordered by interval (not ordered within), can be placed arbitrarily in the future (to really any time in the future), and all parsed in O(N) where N is the number of items that exist up to now in the map. By doing up to current time we also account for any pauses or increased latency in processing (we never miss anything).
 
 Oh yeah and we do this way faster than any b-tree or LSM tree could.
 

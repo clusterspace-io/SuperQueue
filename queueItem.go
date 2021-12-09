@@ -49,7 +49,7 @@ func (i *QueueItem) EnqueueItem(sq *SuperQueue) error {
 }
 
 // Moving from `delayed`
-func (i *QueueItem) ReEnqueueItem(sq *SuperQueue) error {
+func (i *QueueItem) ReEnqueueItem(sq *SuperQueue, delayMS *int64) error {
 	// If in-flight then mark timedout
 	if i.InFlight {
 		timeoutMSG := "timedout"
@@ -65,14 +65,27 @@ func (i *QueueItem) ReEnqueueItem(sq *SuperQueue) error {
 		sq.InFlightMapLock.Unlock()
 		atomic.AddInt64(&TimedoutMessages, 1)
 	}
-	// Write queued state to DB
-	err := i.addItemState(sq.Namespace, "queued", time.Now(), nil, nil, nil)
-	if err != nil {
-		logger.Error("Error adding item state during requeue:")
-		logger.Error(err)
-		return err
+	if delayMS != nil {
+		// If delayed, put in mapmap
+		dt := time.Now().Add(time.Millisecond * time.Duration(*delayMS))
+		delayTime := &dt
+		err := i.addItemState(sq.Namespace, "delayed", time.Now(), delayTime, nil, nil)
+		if err != nil {
+			logger.Error("Error inserting delayed item state into table on Enqueue:")
+			logger.Error(err)
+			return err
+		}
+		return i.DelayEnqueueItem(sq, *delayTime)
+	} else {
+		// Write queued state to DB
+		err := i.addItemState(sq.Namespace, "queued", time.Now(), nil, nil, nil)
+		if err != nil {
+			logger.Error("Error adding item state during requeue:")
+			logger.Error(err)
+			return err
+		}
+		return i.EnqueueItem(sq)
 	}
-	return i.EnqueueItem(sq)
 }
 
 // Adds a new queue item to the DB and delays it
@@ -104,7 +117,7 @@ func (i *QueueItem) AckItem(sq *SuperQueue) error {
 	return nil
 }
 
-func (i *QueueItem) NackItem(sq *SuperQueue) error {
+func (i *QueueItem) NackItem(sq *SuperQueue, delayMS *int64) error {
 	// Write nack to DB
 	nackMSG := "nacked"
 	err := i.addItemState(sq.Namespace, "nacked", time.Now(), nil, &nackMSG, &nackMSG)
@@ -120,7 +133,8 @@ func (i *QueueItem) NackItem(sq *SuperQueue) error {
 	// TODO: Discard if max attempts exceeded
 	// Add to new spot in delayed mapmap
 	i.InFlight = false
-	i.ReEnqueueItem(sq)
+	// Check whether we are delayed
+	i.ReEnqueueItem(sq, delayMS)
 	atomic.AddInt64(&NackedMessages, 1)
 	return nil
 }

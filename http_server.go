@@ -162,7 +162,9 @@ func Post_Record(c echo.Context) error {
 
 func Get_Record(c echo.Context) error {
 	defer atomic.AddInt64(&GetRecordRequests, 1)
+	fmt.Println("Getign record")
 	item, err := SQ.Dequeue()
+	fmt.Println("got record")
 	if err != nil {
 		atomic.AddInt64(&HTTP500s, 1)
 		return c.String(500, "Failed to dequeue record")
@@ -227,8 +229,21 @@ func Post_NackRecord(c echo.Context) error {
 		return c.String(404, "Record not found")
 	}
 
+	body := new(NackRecordRequest)
+	if err := ValidateRequest(c, body); err != nil {
+		logger.Debug("Validation failed ", err)
+		atomic.AddInt64(&HTTP400s, 1)
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid body")
+	}
+
+	var delayMS *int64
+	if body.DelayMS != nil {
+		tmp := int64(*body.DelayMS)
+		delayMS = &tmp
+	}
+
 	// Ack the record
-	err := item.NackItem(SQ)
+	err := item.NackItem(SQ, delayMS)
 	if err != nil {
 		logger.Error(err)
 		atomic.AddInt64(&HTTP500s, 1)

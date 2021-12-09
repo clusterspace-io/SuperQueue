@@ -2,6 +2,7 @@ package main
 
 import (
 	"SuperQueue/logger"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -40,12 +41,9 @@ func NewSuperQueue(namespace, partition string, bucketMS, queueLen int64) *Super
 				// logger.Debug("Found item: ", i)
 				// In testing this as a goroutine had no difference in processing speed
 				// TODO: Decrement delayed message if needed
-				i.ReEnqueueItem(SQ)
+				i.ReEnqueueItem(SQ, nil)
 			}
 			// logger.Debug("Deleting bucket ", bucket)
-			dmm.m.Lock()
-			delete(dmm.Map, bucket)
-			dmm.m.Unlock()
 		},
 	}
 	q.DelayConsumer = dc
@@ -88,21 +86,26 @@ func (sq *SuperQueue) Enqueue(item *QueueItem, delayTime *time.Time) error {
 func (sq *SuperQueue) Dequeue() (*QueueItem, error) {
 	// Get from the outbox
 	item := sq.Outbox.Pop()
+	fmt.Println("popped")
 	// Empty
 	if item == nil {
 		return nil, nil
 	}
+	fmt.Println("not nill")
 	// Increment delivery attempts
 	item.Attempts++
 	// Write inflight state to db
 	item.addItemState(sq.Namespace, "in-flight", time.Now(), nil, nil, nil)
+	fmt.Println("add state")
 	item.InFlight = true
 	// Put in in-flight map with in-flight timeout
 	sq.InFlightMapLock.Lock()
 	(*sq.InFlightItems)[item.ID] = item
 	sq.InFlightMapLock.Unlock()
+	fmt.Println("do map")
 	// Add to delay map
 	sq.DelayMapMap.AddItem(item, time.Now().Add(time.Duration(item.InFlightTimeoutSeconds)*time.Second).UnixMilli())
+	fmt.Println("add item to delay")
 	// Update metrics
 	atomic.AddInt64(&InFlightMessages, 1)
 	atomic.AddInt64(&TotalInFlightMessages, 1)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math"
 	"sync"
 )
@@ -26,9 +27,9 @@ func NewMapMap(intervalMS int64) *MapMap {
 func (m *MapMap) ConsumeRange(lowerbound, upperbound int64, consumerFunc func(int64, map[string]*QueueItem)) int64 {
 	var lastItem int64 = -1
 	upperBucket := m.CalculateBucket(upperbound)
-	// lowerBucket := m.CalculateBucket(lowerbound)
+	lowerBucket := m.CalculateBucket(lowerbound)
 	var i int64
-	for i = 0; i <= upperBucket; i += m.Interval {
+	for i = lowerBucket; i <= upperBucket; i += m.Interval {
 		// Calculate the bucket to get
 		bkey := m.CalculateBucket(i)
 		m.m.Lock()
@@ -45,12 +46,15 @@ func (m *MapMap) ConsumeRange(lowerbound, upperbound int64, consumerFunc func(in
 // Adds a new item, creating the bucket if needed (thread safe). `bucketer` should reflect the bucket in which you want this item consumed
 func (m *MapMap) AddItem(item *QueueItem, executeTimeMS int64) {
 	item.TimeBucket = m.CalculateBucket(executeTimeMS)
+	fmt.Println("Calced")
 	m.m.Lock()
+	fmt.Println("locked")
 	defer m.m.Unlock()
 	if _, e := m.Map[item.TimeBucket]; !e {
 		m.Map[item.TimeBucket] = map[string]*QueueItem{}
 	}
 	m.Map[item.TimeBucket][item.ID] = item
+	fmt.Println("added")
 }
 
 // Calculates what bucket a bucketer should be in
