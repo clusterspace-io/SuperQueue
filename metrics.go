@@ -4,6 +4,8 @@ var (
 	InFlightMessages      int64 = 0
 	TotalInFlightMessages int64 = 0
 	QueuedMessages        int64 = 0
+	QueueMessageSize      int64 = 0
+	QueueMaxLen           int64 = 0
 	TotalQueuedMessages   int64 = 0
 	DelayedMessages       int64 = 0
 	TimedoutMessages      int64 = 0

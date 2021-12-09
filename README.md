@@ -16,6 +16,8 @@ Super Simple, Super Scalable, Super Speedy, Super Queue.
   - [POST /ack/:recordID](#post-ackrecordid)
   - [POST /nack/:recordID](#post-nackrecordid)
   - [Get /metrics](#get-metrics)
+- [Metrics and Using](#metrics-and-using)
+  - [Metrics to watch closely:](#metrics-to-watch-closely)
 
 ## Motivation
 
@@ -206,3 +208,28 @@ http post http://localhost:8080/nack/partition1_21yFbkxyFx6AjihUA2CN0WkrfJD
 Get metrics about the partition in prometheus format
 
 Expected Response code: `200`
+
+## Metrics and Using
+
+Metrics are available at the `GET /metrics` endpoint. These are very important to observe for a few reasons.
+
+Most notably, catching full queues. Use the env var `QUEUE_LEN` to determine how long a queue can be. Consider the size of your messages and how many you want. Each item in the queue len stores a pointer to each item, so keep that in mind. Because the system uses buffered channels, the memory for this is reserved upfront. This will end up being the floor of your memory usage. For example a values of `QUEUE_LEN=10000` shows `1.87 MB` of memory used in the heap, and `14.83 MB` in the system (after start).
+
+### Metrics to watch closely:
+
+- `queued_messages` - the total number of queued messages. Watch this (plus `delayed_messages`) against `queue_max_len` as POSTs will fail on this partition if it is full. `delayed_messages` will eventually get converted into `queued_messages` so it is important to prevent that from happening, those goroutines will spin forever.
+- `delayed_messages` - the total number of delayed messages
+- `queue_max_len` - max len of the queue (`QUEUE_LEN` env var)
+- `total_queued_messages` - The cumulative count of messages ever queued
+- `queued_messages_size` - The cumulative size of messages ever queued
+- `mem_bytes_heap` - the current heap usage in bytes
+- `mem_bytes_sys` - the current memory usage given by the os in bytes
+
+Note: SuperQueue will protect against potentially going over the max queue length with the following:
+
+```go
+if atomic.LoadInt64(&QueuedMessages)+atomic.LoadInt64(&DelayedMessages)+atomic.LoadInt64(&InFlightMessages)+1 >= QueueMaxLen {
+		// We could exceed the max length if we do this
+		return c.String(409, "Could exceed queue max length")
+	}
+```

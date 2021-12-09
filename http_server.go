@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -128,6 +129,10 @@ func ValidateRequest(c echo.Context, s interface{}) error {
 }
 
 func Post_Record(c echo.Context) error {
+	if atomic.LoadInt64(&QueuedMessages)+atomic.LoadInt64(&DelayedMessages)+atomic.LoadInt64(&InFlightMessages)+1 > QueueMaxLen {
+		// We could exceed the max length if we do this
+		return c.String(409, "Could exceed queue max length")
+	}
 	defer atomic.AddInt64(&PostRecordRequests, 1)
 	bodyBytes, err := ioutil.ReadAll(c.Request().Body)
 	if err != nil {
@@ -164,9 +169,10 @@ func Post_Record(c echo.Context) error {
 		Version:                0,
 	}, delayTime)
 	if err != nil {
-
+		logger.Error("Failed to enqueue!")
+		logger.Error(err)
+		return c.String(500, err.Error())
 	}
-	// TODO: add full queue handling with metrics incrementing
 
 	atomic.AddInt64(&QueueMessageSize, int64(len(bodyBytes)))
 	return c.String(http.StatusCreated, "")
@@ -266,10 +272,11 @@ func Post_NackRecord(c echo.Context) error {
 func Get_Metrics(c echo.Context) error {
 	finalString := ""
 	finalString += fmt.Sprintf("#TYPE in_flight_messages gauge\n#HELP in_flight_messages The current number of in-flight messages\nin_flight_messages %d", atomic.LoadInt64(&InFlightMessages)) + "\n"
-	finalString += fmt.Sprintf("#TYPE total_in_flight_messages counter\n#HELP total_in_flight_messages The total number of in-flight messages\nin_flight_messages %d", atomic.LoadInt64(&TotalInFlightMessages)) + "\n"
+	finalString += fmt.Sprintf("#TYPE total_in_flight_messages counter\n#HELP total_in_flight_messages The total number of in-flight messages\ntotal_in_flight_messages %d", atomic.LoadInt64(&TotalInFlightMessages)) + "\n"
 	finalString += fmt.Sprintf("#TYPE queued_messages gauge\n#HELP queued_messages The total number of queued messages\nqueued_messages %d", atomic.LoadInt64(&QueuedMessages)) + "\n"
 	finalString += fmt.Sprintf("#TYPE queued_messages_size gauge\n#HELP queued_messages_size The total number of bytes of the queued messages\nqueued_messages_size %d", atomic.LoadInt64(&QueueMessageSize)) + "\n"
-	finalString += fmt.Sprintf("#TYPE total_queued_messages counter\n#HELP total_queued_messages The total number of queued messages\nqueued_messages %d", atomic.LoadInt64(&TotalQueuedMessages)) + "\n"
+	finalString += fmt.Sprintf("#TYPE queue_max_len gauge\n#HELP queue_max_len The max number of queued messages allowed\nqueue_max_len %d", atomic.LoadInt64(&QueueMaxLen)) + "\n"
+	finalString += fmt.Sprintf("#TYPE total_queued_messages counter\n#HELP total_queued_messages The total number of queued messages\ntotal_queued_messages %d", atomic.LoadInt64(&TotalQueuedMessages)) + "\n"
 	finalString += fmt.Sprintf("#TYPE delayed_messages gauge\n#HELP delayed_messages The current number of delayed messages\ndelayed_messages %d", atomic.LoadInt64(&DelayedMessages)) + "\n"
 	finalString += fmt.Sprintf("#TYPE timedout_messages counter\n#HELP timedout_messages The total number of timedout messages\ntimedout_messages %d", atomic.LoadInt64(&TimedoutMessages)) + "\n"
 	finalString += fmt.Sprintf("#TYPE acked_messages counter\n#HELP acked_messages The total number of acknowledged messages\nacked_messages %d", atomic.LoadInt64(&AckedMessages)) + "\n"
@@ -286,6 +293,13 @@ func Get_Metrics(c echo.Context) error {
 	finalString += fmt.Sprintf("#TYPE http_500s counter\n#HELP http_500s The total number of returned 500 http responses\nhttp_500s %d", atomic.LoadInt64(&HTTP500s)) + "\n"
 	finalString += fmt.Sprintf("#TYPE http_400s counter\n#HELP http_400s The total number of returned 400 http responses\nhttp_400s %d", atomic.LoadInt64(&HTTP400s)) + "\n"
 	finalString += fmt.Sprintf("#TYPE ack_latency counter\n#HELP ack_latency The sum of POST /ack latency. Use both ack_misses and acked_messages to calculate latency per request\nack_latency %d", atomic.LoadInt64(&AckLatency)) + "\n"
-	finalString += fmt.Sprintf("#TYPE nack_latency counter\n#HELP nack_latency The sum of POST /nack latency. Use both nack_misses and nacked_messages to calculate latency per request\nnack_latency %d", atomic.LoadInt64(&NackLatency))
+	finalString += fmt.Sprintf("#TYPE nack_latency counter\n#HELP nack_latency The sum of POST /nack latency. Use both nack_misses and nacked_messages to calculate latency per request\nnack_latency %d", atomic.LoadInt64(&NackLatency)) + "\n"
+
+	// Resource metrics
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	finalString += fmt.Sprintf("#TYPE mem_bytes_heap gauge\n#HELP mem_bytes_heap The current memory usage in bytes of the process' heap\nmem_bytes_heap %d", m.Alloc) + "\n"
+	finalString += fmt.Sprintf("#TYPE mem_bytes_sys gauge\n#HELP mem_bytes_sys The current memory usage in bytes that the process has obtained from the os\nmem_bytes_sys %d", m.Sys) + "\n"
+
 	return c.String(200, finalString)
 }

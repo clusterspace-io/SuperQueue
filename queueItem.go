@@ -53,6 +53,7 @@ func (i *QueueItem) ReEnqueueItem(sq *SuperQueue, delayMS *int64) error {
 	// If in-flight then mark timedout
 	if i.InFlight {
 		timeoutMSG := "timedout"
+		atomic.AddInt64(&InFlightMessages, -1)
 		err := i.addItemState(sq.Namespace, "timedout", time.Now(), nil, &timeoutMSG, &timeoutMSG)
 		if err != nil {
 			logger.Error("Error adding item state during timeout:")
@@ -64,6 +65,9 @@ func (i *QueueItem) ReEnqueueItem(sq *SuperQueue, delayMS *int64) error {
 		delete(*sq.InFlightItems, i.ID)
 		sq.InFlightMapLock.Unlock()
 		atomic.AddInt64(&TimedoutMessages, 1)
+	} else {
+		// Otherwise we are delayed
+		atomic.AddInt64(&DelayedMessages, -1)
 	}
 	if delayMS != nil {
 		// If delayed, put in mapmap
@@ -114,6 +118,7 @@ func (i *QueueItem) AckItem(sq *SuperQueue) error {
 	// Remove from delay mapmap
 	sq.DelayMapMap.DeleteItem(i)
 	atomic.AddInt64(&AckedMessages, 1)
+	atomic.AddInt64(&InFlightMessages, -1)
 	return nil
 }
 
@@ -132,9 +137,9 @@ func (i *QueueItem) NackItem(sq *SuperQueue, delayMS *int64) error {
 	sq.DelayMapMap.DeleteItem(i)
 	// TODO: Discard if max attempts exceeded
 	// Add to new spot in delayed mapmap
-	i.InFlight = false
 	// Check whether we are delayed
 	i.ReEnqueueItem(sq, delayMS)
+	i.InFlight = false
 	atomic.AddInt64(&NackedMessages, 1)
 	return nil
 }
