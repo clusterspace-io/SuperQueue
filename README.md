@@ -184,7 +184,7 @@ http post http://localhost:8080/ack/partition1_21yFbkxyFx6AjihUA2CN0WkrfJD
 
 ### POST /nack/:recordID
 
-Negatively acknowledge a record to immediately requeue the record. As of now no back off or delay is supported.
+Negatively acknowledge a record to immediately requeue the record. An optional delay can be added to override any immediate re-enqueue or back off.
 
 Body:
 ```
