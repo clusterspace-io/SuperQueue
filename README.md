@@ -159,7 +159,8 @@ Expected Response body (code `200`):
 ```
 {
   id: string,
-  payload: string
+  payload: string,
+  attempts: int
 }
 ```
 

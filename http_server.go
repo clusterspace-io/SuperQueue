@@ -174,9 +174,10 @@ func Get_Record(c echo.Context) error {
 		atomic.AddInt64(&EmptyQueueResponses, 1)
 		return c.String(http.StatusNoContent, "Empty")
 	}
-	return c.JSON(200, map[string]string{
-		"id":      SQ.Partition + "_" + item.ID,
-		"payload": string(item.Payload),
+	return c.JSON(200, map[string]interface{}{
+		"id":       SQ.Partition + "_" + item.ID,
+		"payload":  string(item.Payload),
+		"attempts": item.Attempts,
 	})
 }
 
