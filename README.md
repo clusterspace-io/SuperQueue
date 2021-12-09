@@ -185,7 +185,15 @@ http post http://localhost:8080/ack/partition1_21yFbkxyFx6AjihUA2CN0WkrfJD
 
 Negatively acknowledge a record to immediately requeue the record. As of now no back off or delay is supported.
 
+Body:
+```
+{
+  delay_ms?: int // Manual override of exponential back off
+}
+```
+
 Expected Response code: `200`
+
 
 Example:
 ```
