@@ -162,9 +162,7 @@ func Post_Record(c echo.Context) error {
 
 func Get_Record(c echo.Context) error {
 	defer atomic.AddInt64(&GetRecordRequests, 1)
-	fmt.Println("Getign record")
 	item, err := SQ.Dequeue()
-	fmt.Println("got record")
 	if err != nil {
 		atomic.AddInt64(&HTTP500s, 1)
 		return c.String(500, "Failed to dequeue record")
