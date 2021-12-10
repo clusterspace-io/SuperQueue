@@ -2,7 +2,9 @@ package main
 
 import (
 	"SuperQueue/logger"
+	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -20,7 +22,13 @@ func main() {
 		logger.Error("Failed to provide a partition using the PARTITION env var, exiting")
 		os.Exit(1)
 	}
-	SQ = NewSuperQueue("test-ns", partition, 5, 2<<20)
+	var err error
+	QueueMaxLen, err = strconv.ParseInt(GetEnvOrFail("QUEUE_LEN"), 10, 64)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to calculate int64 for QUEUE_LEN of %s", GetEnvOrFail("QUEUE_LEN")))
+	}
+
+	SQ = NewSuperQueue("test-ns", partition, 5, QueueMaxLen)
 	go func() {
 		StartHTTPServer()
 	}()
