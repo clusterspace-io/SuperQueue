@@ -2,7 +2,9 @@ package main
 
 import (
 	"SuperQueue/logger"
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -127,6 +129,12 @@ func ValidateRequest(c echo.Context, s interface{}) error {
 
 func Post_Record(c echo.Context) error {
 	defer atomic.AddInt64(&PostRecordRequests, 1)
+	bodyBytes, err := ioutil.ReadAll(c.Request().Body)
+	if err != nil {
+		logger.Error("Failed to read body bytes:")
+		logger.Error(err)
+	}
+	c.Request().Body = ioutil.NopCloser(bytes.NewReader(bodyBytes))
 	body := new(PostRecordRequest)
 	if err := ValidateRequest(c, body); err != nil {
 		logger.Debug("Validation failed ", err)
@@ -144,7 +152,7 @@ func Post_Record(c echo.Context) error {
 		delayTime = &dt
 	}
 
-	SQ.Enqueue(&QueueItem{
+	err = SQ.Enqueue(&QueueItem{
 		ID:                     itemID,
 		Payload:                []byte(body.Payload),
 		CreatedAt:              time.Now(),
@@ -155,8 +163,12 @@ func Post_Record(c echo.Context) error {
 		BackoffMultiplier:      2,
 		Version:                0,
 	}, delayTime)
+	if err != nil {
+
+	}
 	// TODO: add full queue handling with metrics incrementing
 
+	atomic.AddInt64(&QueueMessageSize, int64(len(bodyBytes)))
 	return c.String(http.StatusCreated, "")
 }
 
@@ -256,6 +268,7 @@ func Get_Metrics(c echo.Context) error {
 	finalString += fmt.Sprintf("#TYPE in_flight_messages gauge\n#HELP in_flight_messages The current number of in-flight messages\nin_flight_messages %d", atomic.LoadInt64(&InFlightMessages)) + "\n"
 	finalString += fmt.Sprintf("#TYPE total_in_flight_messages counter\n#HELP total_in_flight_messages The total number of in-flight messages\nin_flight_messages %d", atomic.LoadInt64(&TotalInFlightMessages)) + "\n"
 	finalString += fmt.Sprintf("#TYPE queued_messages gauge\n#HELP queued_messages The total number of queued messages\nqueued_messages %d", atomic.LoadInt64(&QueuedMessages)) + "\n"
+	finalString += fmt.Sprintf("#TYPE queued_messages_size gauge\n#HELP queued_messages_size The total number of bytes of the queued messages\nqueued_messages_size %d", atomic.LoadInt64(&QueueMessageSize)) + "\n"
 	finalString += fmt.Sprintf("#TYPE total_queued_messages counter\n#HELP total_queued_messages The total number of queued messages\nqueued_messages %d", atomic.LoadInt64(&TotalQueuedMessages)) + "\n"
 	finalString += fmt.Sprintf("#TYPE delayed_messages gauge\n#HELP delayed_messages The current number of delayed messages\ndelayed_messages %d", atomic.LoadInt64(&DelayedMessages)) + "\n"
 	finalString += fmt.Sprintf("#TYPE timedout_messages counter\n#HELP timedout_messages The total number of timedout messages\ntimedout_messages %d", atomic.LoadInt64(&TimedoutMessages)) + "\n"
