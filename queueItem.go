@@ -133,7 +133,6 @@ func (i *QueueItem) NackItem(sq *SuperQueue, delayMS *int64) error {
 	sq.InFlightMapLock.Unlock()
 	// Remove from old spot in delayed mapmap
 	sq.DelayMapMap.DeleteItem(i)
-	// TODO: Discard if max attempts exceeded
 	// Add to new spot in delayed mapmap
 	// Check whether we are delayed
 	i.ReEnqueueItem(sq, false, delayMS)
