@@ -28,8 +28,6 @@ var (
 			"created_at",
 			"expire_at",
 			"in_flight_timeout",
-			"backoff_min",
-			"backoff_multiplier",
 		},
 		PartKey: []string{"namespace", "id"},
 	}
@@ -131,8 +129,6 @@ func DBTableSetup() {
 			created_at TIMESTAMP,
 			expire_at TIMESTAMP,
 			in_flight_timeout INT,
-			backoff_min INT,
-			backoff_multiplier DOUBLE,
 			PRIMARY KEY((namespace, id))
 		);
 	`)

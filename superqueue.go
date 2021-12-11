@@ -40,7 +40,7 @@ func NewSuperQueue(namespace, partition string, bucketMS, queueLen int64) *Super
 				// logger.Debug("Found item: ", i)
 				// In testing this as a goroutine had no difference in processing speed
 				// TODO: Decrement delayed message if needed
-				i.ReEnqueueItem(SQ, nil)
+				i.ReEnqueueItem(SQ, true, nil) // Not sure I like calling this `timedout`, but it kind of is (the delay timed out) and it really only gets considered if it was inflight anyway
 			}
 			// logger.Debug("Deleting bucket ", bucket)
 		},

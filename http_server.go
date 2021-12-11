@@ -164,8 +164,6 @@ func Post_Record(c echo.Context) error {
 		StorageBucket:          "fake-bucket",
 		ExpireAt:               time.Now().Add(4 * time.Hour),
 		InFlightTimeoutSeconds: 30,
-		BackoffMinMS:           300,
-		BackoffMultiplier:      2,
 		Version:                0,
 	}, delayTime)
 	if err != nil {
@@ -288,7 +286,7 @@ func Get_Metrics(c echo.Context) error {
 	finalString += fmt.Sprintf("#TYPE ack_misses counter\n#HELP ack_misses The total number of ack requests that fail to ack a message\nack_misses %d", atomic.LoadInt64(&AckMisses)) + "\n"
 	finalString += fmt.Sprintf("#TYPE nack_misses counter\n#HELP nack_misses The total number of nack requests that fail to nack a message\nnack_misses %d", atomic.LoadInt64(&NackMisses)) + "\n"
 	finalString += fmt.Sprintf("#TYPE empty_queue_responses counter\n#HELP empty_queue_responses The total number of GET /record requests that result in an empty queue response\nempty_queue_responses %d", atomic.LoadInt64(&EmptyQueueResponses)) + "\n"
-	finalString += fmt.Sprintf("#TYPE full_queue_responses counter\n#HELP full_queue_responses The total number of GET /record requests that result in a full queue response\nfull_queue_responses %d", atomic.LoadInt64(&EmptyQueueResponses)) + "\n"
+	finalString += fmt.Sprintf("#TYPE full_queue_responses counter\n#HELP full_queue_responses The total number of GET /record requests that result in a full queue response\nfull_queue_responses %d", atomic.LoadInt64(&FullQueueResponses)) + "\n"
 	finalString += fmt.Sprintf("#TYPE http_total_requests counter\n#HELP http_total_requests The total number of http requests processed returning any code\nhttp_total_requests %d", atomic.LoadInt64(&TotalRequests)) + "\n"
 	finalString += fmt.Sprintf("#TYPE http_500s counter\n#HELP http_500s The total number of returned 500 http responses\nhttp_500s %d", atomic.LoadInt64(&HTTP500s)) + "\n"
 	finalString += fmt.Sprintf("#TYPE http_400s counter\n#HELP http_400s The total number of returned 400 http responses\nhttp_400s %d", atomic.LoadInt64(&HTTP400s)) + "\n"

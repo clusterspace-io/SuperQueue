@@ -32,7 +32,7 @@ The goal of SuperQueues was to appeal to as many use cases as possible by buildi
 - Extreme scale (true horizontal linear scaling)
 - Extremely low latency (both end to end, and per request)
 - Super simple to use (there are only 4 endpoints to interact with)
-- Super useful features (custom exponential backoff, delayed sending, all per-message)
+- Super useful features (individual delay sending, delay after nack, etc.)
 - Non-blocking (messages don't prevent each other from being sent)
 - At-least-once processing (messages will requeue until they are acknowledged or exceed their lifetime)
 - Durability (when we say we've got your message, it is written durably)

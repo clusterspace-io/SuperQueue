@@ -14,9 +14,7 @@ type QueueItem struct {
 	ExpireAt               time.Time
 	InFlightTimeoutSeconds int
 	// Used to determine what to do in delaymapmap parsing
-	InFlight          bool
-	BackoffMinMS      int
-	BackoffMultiplier float64
+	InFlight bool
 	// The time that is used to bucket for the delaymapmap
 	TimeBucket int64
 
@@ -48,23 +46,23 @@ func (i *QueueItem) EnqueueItem(sq *SuperQueue) error {
 	return nil
 }
 
-// Moving from `delayed`
-func (i *QueueItem) ReEnqueueItem(sq *SuperQueue, delayMS *int64) error {
-	// If in-flight then mark timedout
+func (i *QueueItem) ReEnqueueItem(sq *SuperQueue, timedout bool, delayMS *int64) error {
 	if i.InFlight {
-		timeoutMSG := "timedout"
 		atomic.AddInt64(&InFlightMessages, -1)
-		err := i.addItemState(sq.Namespace, "timedout", time.Now(), nil, &timeoutMSG, &timeoutMSG)
-		if err != nil {
-			logger.Error("Error adding item state during timeout:")
-			logger.Error(err)
-			return err
+		if timedout {
+			timeoutMSG := "timedout"
+			err := i.addItemState(sq.Namespace, "timedout", time.Now(), nil, &timeoutMSG, &timeoutMSG)
+			if err != nil {
+				logger.Error("Error adding item state during timeout:")
+				logger.Error(err)
+				return err
+			}
+			atomic.AddInt64(&TimedoutMessages, 1)
 		}
 		i.InFlight = false
 		sq.InFlightMapLock.Lock()
 		delete(*sq.InFlightItems, i.ID)
 		sq.InFlightMapLock.Unlock()
-		atomic.AddInt64(&TimedoutMessages, 1)
 	} else {
 		// Otherwise we are delayed
 		atomic.AddInt64(&DelayedMessages, -1)
@@ -138,8 +136,7 @@ func (i *QueueItem) NackItem(sq *SuperQueue, delayMS *int64) error {
 	// TODO: Discard if max attempts exceeded
 	// Add to new spot in delayed mapmap
 	// Check whether we are delayed
-	i.ReEnqueueItem(sq, delayMS)
-	i.InFlight = false
+	i.ReEnqueueItem(sq, false, delayMS)
 	atomic.AddInt64(&NackedMessages, 1)
 	return nil
 }
@@ -150,19 +147,17 @@ func (i *QueueItem) NackItem(sq *SuperQueue, delayMS *int64) error {
 
 func (i *QueueItem) addItemToItemsTable(namespace string) error {
 	// _, err := PGPool.Exec(context.Background(), `
-	// 	INSERT INTO items (id, payload, bucket, created_at, expire_at, in_flight_timeout, backoff_min, backoff_multiplier)
-	// 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-	// `, i.ID, i.Payload, i.StorageBucket, i.CreatedAt, i.ExpireAt, i.InFlightTimeoutSeconds, i.BackoffMinMS, i.BackoffMultiplier)
+	// 	INSERT INTO items (id, payload, bucket, created_at, expire_at, in_flight_timeout)
+	// 	VALUES ($1, $2, $3, $4, $5, $6)
+	// `, i.ID, i.Payload, i.StorageBucket, i.CreatedAt, i.ExpireAt, i.InFlightTimeoutSeconds)
 	q := DBSession.Query(ItemsTable.Insert()).BindMap(map[string]interface{}{
-		"namespace":          namespace,
-		"id":                 i.ID,
-		"payload":            i.Payload,
-		"bucket":             i.StorageBucket,
-		"created_at":         i.CreatedAt,
-		"expire_at":          i.ExpireAt,
-		"in_flight_timeout":  i.InFlightTimeoutSeconds,
-		"backoff_min":        i.BackoffMinMS,
-		"backoff_multiplier": i.BackoffMultiplier,
+		"namespace":         namespace,
+		"id":                i.ID,
+		"payload":           i.Payload,
+		"bucket":            i.StorageBucket,
+		"created_at":        i.CreatedAt,
+		"expire_at":         i.ExpireAt,
+		"in_flight_timeout": i.InFlightTimeoutSeconds,
 	})
 	err := q.ExecRelease()
 	return err
