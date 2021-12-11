@@ -148,7 +148,7 @@ func DBTableSetup() {
 			error TEXT,
 			error_message TEXT,
 			PRIMARY KEY((namespace, id), version)
-		);
+		) WITH CLUSTERING ORDER BY (version DESC);
 	`)
 	if err != nil {
 		log.Fatal(err)
