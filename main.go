@@ -4,8 +4,9 @@ import (
 	"SuperQueue/logger"
 	"fmt"
 	"os"
+	"os/signal"
 	"strconv"
-	"time"
+	"syscall"
 
 	"github.com/sirupsen/logrus"
 )
@@ -49,8 +50,9 @@ func main() {
 	// }
 	logger.Info("Done setting up db")
 
-	logger.Warn("Sleeping for 1000 seconds before shutdown")
-	time.Sleep(time.Second * 1000)
-	logger.Warn("Shutting down")
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	<-c
+	logger.Info("Closing server")
 	Server.Echo.Close()
 }
