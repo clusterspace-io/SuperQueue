@@ -215,6 +215,8 @@ Metrics are available at the `GET /metrics` endpoint. These are very important t
 
 Most notably, catching full queues. Use the env var `QUEUE_LEN` to determine how long a queue can be. Consider the size of your messages and how many you want. Each item in the queue len stores a pointer to each item, so keep that in mind. Because the system uses buffered channels, the memory for this is reserved upfront. This will end up being the floor of your memory usage. For example a values of `QUEUE_LEN=10000` shows `1.87 MB` of memory used in the heap, and `14.83 MB` in the system (after start).
 
+In my testing each QUEUE_LEN increment uses another 8 bytes, as using `QUEUE_LEN=1000000000` (1 billion) used a touch over 8GB of memory.
+
 ### Metrics to watch closely:
 
 - `queued_messages` - the total number of queued messages. Watch this (plus `delayed_messages`) against `queue_max_len` as POSTs will fail on this partition if it is full. `delayed_messages` will eventually get converted into `queued_messages` so it is important to prevent that from happening, those goroutines will spin forever.
