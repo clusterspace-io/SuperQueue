@@ -14,7 +14,8 @@ var (
 	SDTicker   *time.Ticker
 )
 
-func TryEtcdSD(sq *SuperQueue) {
+// Tries to start etcd based service discovery. Returns whether SD was configured and setup.
+func TryEtcdSD(sq *SuperQueue) bool {
 	// If ETCD_HOSTS exists, start reporting for service discovery
 	if ETCD_HOSTS != "" {
 		logger.Debug("Starting etcd based service discovery")
@@ -33,12 +34,14 @@ func TryEtcdSD(sq *SuperQueue) {
 		} else {
 			logger.Debug("Connected to etcd")
 		}
+		UpdateSD()
 		SDTicker = time.NewTicker(10 * time.Second)
 		go func() {
 			for {
 				select {
 				case <-SDTicker.C:
 					logger.Debug("SD Tick")
+					UpdateSD()
 
 				case <-sq.CloseChan:
 					logger.Info("Closing service discovery ticker")
@@ -47,5 +50,12 @@ func TryEtcdSD(sq *SuperQueue) {
 				}
 			}
 		}()
+		return true
 	}
+	return false
+}
+
+// Updates the service discovery entry for this partition
+func UpdateSD() error {
+	return nil
 }

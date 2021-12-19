@@ -26,6 +26,7 @@ func NewSuperQueue(namespace, partition string, bucketMS, queueLen int64) *Super
 		InFlightMapLock: sync.RWMutex{},
 		Partition:       partition,
 		CloseChan:       make(chan struct{}),
+		Namespace:       namespace,
 	}
 
 	q.Outbox = NewOutbox(q, queueLen)
@@ -49,6 +50,7 @@ func NewSuperQueue(namespace, partition string, bucketMS, queueLen int64) *Super
 	}
 	q.DelayConsumer = dc
 
+	// Try to setup service discovery
 	TryEtcdSD(q)
 
 	return q
