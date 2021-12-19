@@ -43,6 +43,10 @@ func main() {
 		logger.Error("Failed to provide a partition using the PARTITION env var, exiting")
 		os.Exit(1)
 	}
+	if ADVERTISE_ADDRESS == "" {
+		logger.Error("Failed to provide a advertise address using the ADVERTISE_ADDRESS env var, exiting")
+		os.Exit(1)
+	}
 	var err error
 	QueueMaxLen, err = strconv.ParseInt(GetEnvOrFail("QUEUE_LEN"), 10, 64)
 	if err != nil {

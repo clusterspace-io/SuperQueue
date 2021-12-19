@@ -6,8 +6,9 @@ import (
 )
 
 var (
-	PARTITION  = os.Getenv("PARTITION")
-	ETCD_HOSTS = os.Getenv("ETCD_HOSTS")
+	PARTITION         = os.Getenv("PARTITION")
+	ETCD_HOSTS        = os.Getenv("ETCD_HOSTS")
+	ADVERTISE_ADDRESS = os.Getenv("ADVERTISE_ADDRESS")
 )
 
 func GetEnvOrDefault(env, defaultVal string) string {

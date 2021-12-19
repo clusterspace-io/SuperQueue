@@ -21,6 +21,7 @@ type PartitionSDRecord struct {
 	QueueName  string
 	Partition  string
 	UpdatedAt  time.Time
+	Address    string
 	IsDraining bool
 }
 
@@ -76,6 +77,7 @@ func UpdateSD(c context.Context) error {
 		Partition:  SQ.Partition,
 		UpdatedAt:  time.Now(),
 		IsDraining: false,
+		Address:    ADVERTISE_ADDRESS,
 	}
 	b, err := json.Marshal(r)
 	if err != nil {
