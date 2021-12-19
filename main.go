@@ -8,13 +8,9 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"strconv"
-	"strings"
 	"syscall"
-	"time"
 
-	"github.com/etcd-io/etcd/clientv3"
 	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
 )
 
 var (
@@ -39,7 +35,6 @@ func main() {
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	c2 := make(chan struct{})
 
 	logger.Logger.Logger.SetLevel(logrus.DebugLevel)
 	logger.Info("Starting SuperQueue")
@@ -60,30 +55,6 @@ func main() {
 	}()
 	SQ.DelayConsumer.Start()
 
-	// If ETCD_HOSTS exists, start reporting for service discovery
-	if ETCD_HOSTS != "" {
-		logger.Debug("Starting etcd based service discovery")
-		hosts := strings.Split(ETCD_HOSTS, ",")
-		logger.Debug("Using hosts: ", hosts)
-		cli, err := clientv3.New(clientv3.Config{
-			Endpoints:   hosts,
-			DialTimeout: 2 * time.Second,
-			DialOptions: []grpc.DialOption{grpc.WithBlock()}, // Need this to actually fail on connect
-		})
-		if err != nil {
-			logger.Error("Failed to connect to etcd!")
-			logger.Error(err)
-			panic(err)
-		} else {
-			logger.Debug("Connected to etcd")
-		}
-		go func() {
-			<-c2
-			logger.Info("Closing service discovery ticker")
-		}()
-		defer cli.Close()
-	}
-
 	logger.Debug("Setting up DB")
 	// err := ConnectToDB(os.Getenv("CONN_STRING"))
 	DBConnectWithoutKeyspace()
@@ -100,7 +71,7 @@ func main() {
 	logger.Debug("Done setting up db")
 
 	<-c
-	close(c2)
+	SQ.Close()
 	logger.Info("Closing server")
 	Server.Echo.Close()
 }
