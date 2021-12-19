@@ -2,13 +2,9 @@ package main
 
 import (
 	"SuperQueue/logger"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/etcd-io/etcd/clientv3"
-	"google.golang.org/grpc"
 )
 
 type SuperQueue struct {
@@ -53,29 +49,7 @@ func NewSuperQueue(namespace, partition string, bucketMS, queueLen int64) *Super
 	}
 	q.DelayConsumer = dc
 
-	// If ETCD_HOSTS exists, start reporting for service discovery
-	if ETCD_HOSTS != "" {
-		logger.Debug("Starting etcd based service discovery")
-		hosts := strings.Split(ETCD_HOSTS, ",")
-		logger.Debug("Using hosts: ", hosts)
-		cli, err := clientv3.New(clientv3.Config{
-			Endpoints:   hosts,
-			DialTimeout: 2 * time.Second,
-			DialOptions: []grpc.DialOption{grpc.WithBlock()}, // Need this to actually fail on connect
-		})
-		if err != nil {
-			logger.Error("Failed to connect to etcd!")
-			logger.Error(err)
-			panic(err)
-		} else {
-			logger.Debug("Connected to etcd")
-		}
-		go func() {
-			<-q.CloseChan
-			logger.Info("Closing service discovery ticker")
-		}()
-		defer cli.Close()
-	}
+	TryEtcdSD(q)
 
 	return q
 }
@@ -83,6 +57,10 @@ func NewSuperQueue(namespace, partition string, bucketMS, queueLen int64) *Super
 func (sq *SuperQueue) Close() {
 	logger.Info("Closing superqueue")
 	sq.DelayConsumer.Stop()
+	if EtcdClient != nil {
+		logger.Info("Closing etcd client")
+		EtcdClient.Close()
+	}
 	close(sq.CloseChan)
 }
 
