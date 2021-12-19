@@ -2,10 +2,13 @@ package main
 
 import (
 	"SuperQueue/logger"
+	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/etcd-io/etcd/clientv3"
+	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 
@@ -13,6 +16,12 @@ var (
 	EtcdClient *clientv3.Client
 	SDTicker   *time.Ticker
 )
+
+type PartitionSDRecord struct {
+	QueueName string
+	Partition string
+	UpdatedAt time.Time
+}
 
 // Tries to start etcd based service discovery. Returns whether SD was configured and setup.
 func TryEtcdSD(sq *SuperQueue) bool {
@@ -34,14 +43,14 @@ func TryEtcdSD(sq *SuperQueue) bool {
 		} else {
 			logger.Debug("Connected to etcd")
 		}
-		UpdateSD()
+		UpdateSD(context.Background())
 		SDTicker = time.NewTicker(10 * time.Second)
 		go func() {
 			for {
 				select {
 				case <-SDTicker.C:
 					logger.Debug("SD Tick")
-					UpdateSD()
+					UpdateSD(context.Background())
 
 				case <-sq.CloseChan:
 					logger.Info("Closing service discovery ticker")
@@ -56,6 +65,23 @@ func TryEtcdSD(sq *SuperQueue) bool {
 }
 
 // Updates the service discovery entry for this partition
-func UpdateSD() error {
+func UpdateSD(c context.Context) error {
+	logger.Debug("Updating service discovery...")
+	t := time.Now()
+	ctx, cancelFunc := context.WithTimeout(c, time.Second*1) // 1 second timeout
+	defer cancelFunc()
+	r := &PartitionSDRecord{
+		QueueName: SQ.Name,
+		Partition: SQ.Partition,
+		UpdatedAt: time.Now(),
+	}
+	b, err := json.Marshal(r)
+	if err != nil {
+		logger.Error("Error marshalling service discovery record!")
+		logger.Error(err)
+		return err
+	}
+	EtcdClient.KV.Put(ctx, fmt.Sprintf("q_%s_%s", SQ.Name, SQ.Partition), string(b))
+	logger.Debug("Updated service discovery in ", time.Since(t))
 	return nil
 }

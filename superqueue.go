@@ -50,9 +50,6 @@ func NewSuperQueue(queueName, partition string, bucketMS, queueLen int64) *Super
 	}
 	q.DelayConsumer = dc
 
-	// Try to setup service discovery
-	TryEtcdSD(q)
-
 	return q
 }
 

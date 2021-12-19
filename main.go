@@ -50,6 +50,8 @@ func main() {
 	}
 
 	SQ = NewSuperQueue("test-ns", PARTITION, 5, QueueMaxLen)
+	// Try to setup service discovery
+	TryEtcdSD(SQ)
 	go func() {
 		StartHTTPServer()
 	}()
