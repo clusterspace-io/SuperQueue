@@ -43,7 +43,7 @@ func FormatMetric(metricName, metricType, description string, value interface{})
 		logger.Error("Failed to get hostname!")
 		panic(err)
 	}
-	return fmt.Sprintf("#TYPE %s %s\n#HELP %s %s\n%s{host=%s, queue=%s, partition=%s} %v", metricName, metricType, metricName, description, metricName, hn, SQ.Namespace, SQ.Partition, value)
+	return fmt.Sprintf("#TYPE %s %s\n#HELP %s %s\n%s{host=%s, queue=%s, partition=%s} %v", metricName, metricType, metricName, description, metricName, hn, SQ.Name, SQ.Partition, value)
 }
 
 func GetMetrics() string {
