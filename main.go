@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
+	"runtime/pprof"
 	"strconv"
 	"strings"
 	"syscall"
@@ -20,6 +22,21 @@ var (
 )
 
 func main() {
+	if os.Getenv("TEST_MODE") == "true" {
+		logger.Warn("TEST_MODE true, enabling cpu profiling")
+		f, perr := os.Create("cpu.pprof")
+		if perr != nil {
+			panic(perr)
+		}
+		runtime.SetCPUProfileRate(100)
+		perr = pprof.StartCPUProfile(f)
+		if perr != nil {
+			panic(perr)
+		}
+		defer f.Close()
+		defer pprof.StopCPUProfile()
+	}
+
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	c2 := make(chan struct{})

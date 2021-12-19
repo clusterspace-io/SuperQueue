@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"runtime"
 	"strings"
 	"sync/atomic"
 	"time"
+
+	_ "net/http/pprof"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
@@ -50,7 +53,7 @@ func StartHTTPServer() {
 	Server.registerRoutes()
 
 	logger.Info("Starting SuperQueue on port ", GetEnvOrDefault("HTTP_PORT", "8080"))
-	Server.Echo.Logger.Fatal(Server.Echo.Start(":" + GetEnvOrDefault("HTTP_PORT", "8080")))
+	Server.Echo.Start(":" + GetEnvOrDefault("HTTP_PORT", "8080"))
 }
 
 func IncrementCounter(next echo.HandlerFunc) echo.HandlerFunc {
@@ -116,6 +119,20 @@ func (s *HTTPServer) registerRoutes() {
 	s.Echo.POST("/nack/:recordID", Post_NackRecord, NackRecordLatencyCounter)
 
 	s.Echo.GET("/metrics", Get_Metrics)
+
+	if os.Getenv("TEST_MODE") == "true" {
+		logger.Warn("TEST_MODE true, enabling debug routes")
+		d := Server.Echo.Group("/debug")
+		d.GET("/vars", wrapStdHandler)
+		d.GET("/pprof/heap", wrapStdHandler)
+		d.GET("/pprof/goroutine", wrapStdHandler)
+		d.GET("/pprof/block", wrapStdHandler)
+		d.GET("/pprof/threadcreate", wrapStdHandler)
+		d.GET("/pprof/cmdline", wrapStdHandler)
+		d.GET("/pprof/profile", wrapStdHandler)
+		d.GET("/pprof/symbol", wrapStdHandler)
+		d.GET("/pprof/trace", wrapStdHandler)
+	}
 }
 
 func ValidateRequest(c echo.Context, s interface{}) error {
@@ -126,6 +143,16 @@ func ValidateRequest(c echo.Context, s interface{}) error {
 		return err
 	}
 	return nil
+}
+
+// Wrapper for all stdlib /debug/* handlers
+func wrapStdHandler(c echo.Context) error {
+	w, r := c.Response().Writer, c.Request()
+	if h, p := http.DefaultServeMux.Handler(r); len(p) != 0 {
+		h.ServeHTTP(w, r)
+		return nil
+	}
+	return echo.NewHTTPError(http.StatusNotFound)
 }
 
 func Post_Record(c echo.Context) error {
