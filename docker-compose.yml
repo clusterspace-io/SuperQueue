@@ -1,0 +1,41 @@
+version: '3'
+services:
+  etcd:
+    image: quay.io/coreos/etcd:latest
+    ports:
+      - 127.0.0.1:2379:2379
+      - 127.0.0.1:2380:2380
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_DATA_DIR=/data/data
+      - ETCD_WAL_DIR=/data/wal
+      - ETCD_NAME=etcd
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://0.0.0.0:2379
+    volumes:
+      - data:/tmp/etcd-data
+  scylla:
+    image: scylladb/scylla
+  sq1:
+    build: ./
+    environment:
+      - HTTP_PORT=8080
+      - ETCD_HOSTS=etcd:2379
+      - QUEUE_LEN=1000000
+      - PARTITION=sq1
+      - SCYLLA_HOSTS=scylla:9042
+    depends_on:
+      - scylla
+  sq2:
+    build: ./
+    environment:
+      - HTTP_PORT=8081
+      - ETCD_HOSTS=etcd:2379
+      - QUEUE_LEN=1000000
+      - PARTITION=sq2
+      - SCYLLA_HOSTS=scylla:9042
+    depends_on:
+      - scylla
+volumes:
+  data: {}

@@ -3,13 +3,14 @@ package main
 import (
 	"SuperQueue/logger"
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"net/http"
-	"runtime"
+	"os"
 	"strings"
 	"sync/atomic"
 	"time"
+
+	_ "net/http/pprof"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
@@ -50,7 +51,7 @@ func StartHTTPServer() {
 	Server.registerRoutes()
 
 	logger.Info("Starting SuperQueue on port ", GetEnvOrDefault("HTTP_PORT", "8080"))
-	Server.Echo.Logger.Fatal(Server.Echo.Start(":" + GetEnvOrDefault("HTTP_PORT", "8080")))
+	Server.Echo.Start(":" + GetEnvOrDefault("HTTP_PORT", "8080"))
 }
 
 func IncrementCounter(next echo.HandlerFunc) echo.HandlerFunc {
@@ -116,6 +117,20 @@ func (s *HTTPServer) registerRoutes() {
 	s.Echo.POST("/nack/:recordID", Post_NackRecord, NackRecordLatencyCounter)
 
 	s.Echo.GET("/metrics", Get_Metrics)
+
+	if os.Getenv("TEST_MODE") == "true" {
+		logger.Warn("TEST_MODE true, enabling debug routes")
+		d := Server.Echo.Group("/debug")
+		d.GET("/vars", wrapStdHandler)
+		d.GET("/pprof/heap", wrapStdHandler)
+		d.GET("/pprof/goroutine", wrapStdHandler)
+		d.GET("/pprof/block", wrapStdHandler)
+		d.GET("/pprof/threadcreate", wrapStdHandler)
+		d.GET("/pprof/cmdline", wrapStdHandler)
+		d.GET("/pprof/profile", wrapStdHandler)
+		d.GET("/pprof/symbol", wrapStdHandler)
+		d.GET("/pprof/trace", wrapStdHandler)
+	}
 }
 
 func ValidateRequest(c echo.Context, s interface{}) error {
@@ -126,6 +141,16 @@ func ValidateRequest(c echo.Context, s interface{}) error {
 		return err
 	}
 	return nil
+}
+
+// Wrapper for all stdlib /debug/* handlers
+func wrapStdHandler(c echo.Context) error {
+	w, r := c.Response().Writer, c.Request()
+	if h, p := http.DefaultServeMux.Handler(r); len(p) != 0 {
+		h.ServeHTTP(w, r)
+		return nil
+	}
+	return echo.NewHTTPError(http.StatusNotFound)
 }
 
 func Post_Record(c echo.Context) error {
@@ -268,36 +293,5 @@ func Post_NackRecord(c echo.Context) error {
 }
 
 func Get_Metrics(c echo.Context) error {
-	finalString := ""
-	finalString += fmt.Sprintf("#TYPE in_flight_messages gauge\n#HELP in_flight_messages The current number of in-flight messages\nin_flight_messages %d", atomic.LoadInt64(&InFlightMessages)) + "\n"
-	finalString += fmt.Sprintf("#TYPE total_in_flight_messages counter\n#HELP total_in_flight_messages The total number of in-flight messages\ntotal_in_flight_messages %d", atomic.LoadInt64(&TotalInFlightMessages)) + "\n"
-	finalString += fmt.Sprintf("#TYPE queued_messages gauge\n#HELP queued_messages The total number of queued messages\nqueued_messages %d", atomic.LoadInt64(&QueuedMessages)) + "\n"
-	finalString += fmt.Sprintf("#TYPE queued_messages_size gauge\n#HELP queued_messages_size The total number of bytes of the queued messages\nqueued_messages_size %d", atomic.LoadInt64(&QueueMessageSize)) + "\n"
-	finalString += fmt.Sprintf("#TYPE queue_max_len gauge\n#HELP queue_max_len The max number of queued messages allowed\nqueue_max_len %d", atomic.LoadInt64(&QueueMaxLen)) + "\n"
-	finalString += fmt.Sprintf("#TYPE total_queued_messages counter\n#HELP total_queued_messages The total number of queued messages\ntotal_queued_messages %d", atomic.LoadInt64(&TotalQueuedMessages)) + "\n"
-	finalString += fmt.Sprintf("#TYPE delayed_messages gauge\n#HELP delayed_messages The current number of delayed messages\ndelayed_messages %d", atomic.LoadInt64(&DelayedMessages)) + "\n"
-	finalString += fmt.Sprintf("#TYPE timedout_messages counter\n#HELP timedout_messages The total number of timedout messages\ntimedout_messages %d", atomic.LoadInt64(&TimedoutMessages)) + "\n"
-	finalString += fmt.Sprintf("#TYPE acked_messages counter\n#HELP acked_messages The total number of acknowledged messages\nacked_messages %d", atomic.LoadInt64(&AckedMessages)) + "\n"
-	finalString += fmt.Sprintf("#TYPE nacked_messages counter\n#HELP nacked_messages The total number of negatively messages\nnacked_messages %d", atomic.LoadInt64(&NackedMessages)) + "\n"
-	finalString += fmt.Sprintf("#TYPE post_record_reqs counter\n#HELP post_record_reqs The total number of POST /record requests\npost_record_reqs %d", atomic.LoadInt64(&PostRecordRequests)) + "\n"
-	finalString += fmt.Sprintf("#TYPE post_record_latency counter\n#HELP post_record_latency The sum of POST /record latency\npost_record_latency %d", atomic.LoadInt64(&PostRecordLatency)) + "\n"
-	finalString += fmt.Sprintf("#TYPE get_record_reqs counter\n#HELP get_record_reqs The total number of GET /record requests\nget_record_reqs %d", atomic.LoadInt64(&GetRecordRequests)) + "\n"
-	finalString += fmt.Sprintf("#TYPE get_record_latency counter\n#HELP get_record_latency The sum of GET /record latencies\nget_record_latency %d", atomic.LoadInt64(&GetRecordLatency)) + "\n"
-	finalString += fmt.Sprintf("#TYPE ack_misses counter\n#HELP ack_misses The total number of ack requests that fail to ack a message\nack_misses %d", atomic.LoadInt64(&AckMisses)) + "\n"
-	finalString += fmt.Sprintf("#TYPE nack_misses counter\n#HELP nack_misses The total number of nack requests that fail to nack a message\nnack_misses %d", atomic.LoadInt64(&NackMisses)) + "\n"
-	finalString += fmt.Sprintf("#TYPE empty_queue_responses counter\n#HELP empty_queue_responses The total number of GET /record requests that result in an empty queue response\nempty_queue_responses %d", atomic.LoadInt64(&EmptyQueueResponses)) + "\n"
-	finalString += fmt.Sprintf("#TYPE full_queue_responses counter\n#HELP full_queue_responses The total number of GET /record requests that result in a full queue response\nfull_queue_responses %d", atomic.LoadInt64(&FullQueueResponses)) + "\n"
-	finalString += fmt.Sprintf("#TYPE http_total_requests counter\n#HELP http_total_requests The total number of http requests processed returning any code\nhttp_total_requests %d", atomic.LoadInt64(&TotalRequests)) + "\n"
-	finalString += fmt.Sprintf("#TYPE http_500s counter\n#HELP http_500s The total number of returned 500 http responses\nhttp_500s %d", atomic.LoadInt64(&HTTP500s)) + "\n"
-	finalString += fmt.Sprintf("#TYPE http_400s counter\n#HELP http_400s The total number of returned 400 http responses\nhttp_400s %d", atomic.LoadInt64(&HTTP400s)) + "\n"
-	finalString += fmt.Sprintf("#TYPE ack_latency counter\n#HELP ack_latency The sum of POST /ack latency. Use both ack_misses and acked_messages to calculate latency per request\nack_latency %d", atomic.LoadInt64(&AckLatency)) + "\n"
-	finalString += fmt.Sprintf("#TYPE nack_latency counter\n#HELP nack_latency The sum of POST /nack latency. Use both nack_misses and nacked_messages to calculate latency per request\nnack_latency %d", atomic.LoadInt64(&NackLatency)) + "\n"
-
-	// Resource metrics
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	finalString += fmt.Sprintf("#TYPE mem_bytes_heap gauge\n#HELP mem_bytes_heap The current memory usage in bytes of the process' heap\nmem_bytes_heap %d", m.Alloc) + "\n"
-	finalString += fmt.Sprintf("#TYPE mem_bytes_sys gauge\n#HELP mem_bytes_sys The current memory usage in bytes that the process has obtained from the os\nmem_bytes_sys %d", m.Sys) + "\n"
-
-	return c.String(200, finalString)
+	return c.String(200, GetMetrics())
 }

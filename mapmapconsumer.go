@@ -26,6 +26,7 @@ func (m *MapMapConsumer) Start() {
 			select {
 			case <-m.endChan:
 				// Exit
+				m.ticker.Stop()
 				return
 			case n := <-m.ticker.C:
 				nowTime := n.UnixMilli()

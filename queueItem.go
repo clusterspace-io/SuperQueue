@@ -51,7 +51,7 @@ func (i *QueueItem) ReEnqueueItem(sq *SuperQueue, timedout bool, delayMS *int64)
 		atomic.AddInt64(&InFlightMessages, -1)
 		if timedout {
 			timeoutMSG := "timedout"
-			err := i.addItemState(sq.Namespace, "timedout", time.Now(), nil, &timeoutMSG, &timeoutMSG)
+			err := i.addItemState(sq.Name, "timedout", time.Now(), nil, &timeoutMSG, &timeoutMSG)
 			if err != nil {
 				logger.Error("Error adding item state during timeout:")
 				logger.Error(err)
@@ -71,7 +71,7 @@ func (i *QueueItem) ReEnqueueItem(sq *SuperQueue, timedout bool, delayMS *int64)
 		// If delayed, put in mapmap
 		dt := time.Now().Add(time.Millisecond * time.Duration(*delayMS))
 		delayTime := &dt
-		err := i.addItemState(sq.Namespace, "delayed", time.Now(), delayTime, nil, nil)
+		err := i.addItemState(sq.Name, "delayed", time.Now(), delayTime, nil, nil)
 		if err != nil {
 			logger.Error("Error inserting delayed item state into table on Enqueue:")
 			logger.Error(err)
@@ -80,7 +80,7 @@ func (i *QueueItem) ReEnqueueItem(sq *SuperQueue, timedout bool, delayMS *int64)
 		return i.DelayEnqueueItem(sq, *delayTime)
 	} else {
 		// Write queued state to DB
-		err := i.addItemState(sq.Namespace, "queued", time.Now(), nil, nil, nil)
+		err := i.addItemState(sq.Name, "queued", time.Now(), nil, nil, nil)
 		if err != nil {
 			logger.Error("Error adding item state during requeue:")
 			logger.Error(err)
@@ -108,7 +108,7 @@ func (i *QueueItem) DequeueItem() error {
 
 func (i *QueueItem) AckItem(sq *SuperQueue) error {
 	// Write ack to DB
-	i.addItemState(sq.Namespace, "acked", time.Now(), nil, nil, nil)
+	i.addItemState(sq.Name, "acked", time.Now(), nil, nil, nil)
 	// Remove from inflight table
 	sq.InFlightMapLock.Lock()
 	delete(*sq.InFlightItems, i.ID)
@@ -123,7 +123,7 @@ func (i *QueueItem) AckItem(sq *SuperQueue) error {
 func (i *QueueItem) NackItem(sq *SuperQueue, delayMS *int64) error {
 	// Write nack to DB
 	nackMSG := "nacked"
-	err := i.addItemState(sq.Namespace, "nacked", time.Now(), nil, &nackMSG, &nackMSG)
+	err := i.addItemState(sq.Name, "nacked", time.Now(), nil, &nackMSG, &nackMSG)
 	if err != nil {
 		return err
 	}
