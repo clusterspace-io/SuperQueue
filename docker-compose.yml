@@ -15,5 +15,27 @@ services:
       - ETCD_ADVERTISE_CLIENT_URLS=http://0.0.0.0:2379
     volumes:
       - data:/tmp/etcd-data
+  scylla:
+    image: scylladb/scylla
+  sq1:
+    build: ./
+    environment:
+      - HTTP_PORT=8080
+      - ETCD_HOSTS=etcd:2379
+      - QUEUE_LEN=1000000
+      - PARTITION=sq1
+      - SCYLLA_HOSTS=scylla:9042
+    depends_on:
+      - scylla
+  sq2:
+    build: ./
+    environment:
+      - HTTP_PORT=8081
+      - ETCD_HOSTS=etcd:2379
+      - QUEUE_LEN=1000000
+      - PARTITION=sq2
+      - SCYLLA_HOSTS=scylla:9042
+    depends_on:
+      - scylla
 volumes:
   data: {}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"SuperQueue/logger"
 	"log"
 	"os"
 	"strings"
@@ -59,8 +60,9 @@ var (
 
 func DBConnect() {
 	var cluster *gocql.ClusterConfig
-	scyllaHost := os.Getenv("SCYLLA_HOST")
+	scyllaHost := os.Getenv("SCYLLA_HOSTS")
 	if scyllaHost == "" {
+		logger.Debug("No SCYLLA_HOSTS env var found, using localhost")
 		cluster = gocql.NewCluster("localhost:9042")
 	} else {
 		cluster = gocql.NewCluster(strings.Split(scyllaHost, ",")...)
@@ -83,8 +85,9 @@ func DBConnect() {
 
 func DBConnectWithoutKeyspace() {
 	var cluster *gocql.ClusterConfig
-	scyllaHost := os.Getenv("SCYLLA_HOST")
+	scyllaHost := os.Getenv("SCYLLA_HOSTS")
 	if scyllaHost == "" {
+		logger.Debug("No SCYLLA_HOSTS env var found, using localhost")
 		cluster = gocql.NewCluster("localhost:9042")
 	} else {
 		cluster = gocql.NewCluster(scyllaHost)
