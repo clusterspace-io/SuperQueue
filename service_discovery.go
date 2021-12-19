@@ -18,9 +18,10 @@ var (
 )
 
 type PartitionSDRecord struct {
-	QueueName string
-	Partition string
-	UpdatedAt time.Time
+	QueueName  string
+	Partition  string
+	UpdatedAt  time.Time
+	IsDraining bool
 }
 
 // Tries to start etcd based service discovery. Returns whether SD was configured and setup.
@@ -71,9 +72,10 @@ func UpdateSD(c context.Context) error {
 	ctx, cancelFunc := context.WithTimeout(c, time.Second*1) // 1 second timeout
 	defer cancelFunc()
 	r := &PartitionSDRecord{
-		QueueName: SQ.Name,
-		Partition: SQ.Partition,
-		UpdatedAt: time.Now(),
+		QueueName:  SQ.Name,
+		Partition:  SQ.Partition,
+		UpdatedAt:  time.Now(),
+		IsDraining: false,
 	}
 	b, err := json.Marshal(r)
 	if err != nil {
