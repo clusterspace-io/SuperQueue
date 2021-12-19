@@ -83,7 +83,7 @@ func main() {
 	logger.Debug("Done setting up db")
 
 	<-c
-	c2 <- struct{}{}
+	close(c2)
 	logger.Info("Closing server")
 	Server.Echo.Close()
 }
