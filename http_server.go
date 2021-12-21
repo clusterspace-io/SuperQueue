@@ -232,9 +232,9 @@ func Post_AckRecord(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Bad record ID given")
 	}
 
-	SQ.InFlightMapLock.Lock()
+	SQ.InFlightMapLock.RLock()
 	item, exists := (*SQ.InFlightItems)[itemID]
-	SQ.InFlightMapLock.Unlock()
+	SQ.InFlightMapLock.RUnlock()
 	// Check if record exists
 	if !exists {
 		atomic.AddInt64(&AckMisses, 1)
