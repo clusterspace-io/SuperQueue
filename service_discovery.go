@@ -4,6 +4,7 @@ import (
 	"SuperQueue/logger"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -30,6 +31,10 @@ func TryEtcdSD(sq *SuperQueue) bool {
 	// If ETCD_HOSTS exists, start reporting for service discovery
 	if ETCD_HOSTS != "" {
 		logger.Debug("Starting etcd based service discovery")
+		if ADVERTISE_URL == "" {
+			logger.Error("Failed to provide a advertise address using the ADVERTISE_URL env var or -advertise-url cli flag, exiting")
+			os.Exit(1)
+		}
 		hosts := strings.Split(ETCD_HOSTS, ",")
 		logger.Debug("Using hosts: ", hosts)
 		var err error
@@ -77,7 +82,7 @@ func UpdateSD(c context.Context) error {
 		Partition:  SQ.Partition,
 		UpdatedAt:  time.Now(),
 		IsDraining: false,
-		Address:    ADVERTISE_ADDRESS,
+		Address:    ADVERTISE_URL,
 	}
 	b, err := json.Marshal(r)
 	if err != nil {
