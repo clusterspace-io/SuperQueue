@@ -2,12 +2,10 @@ package main
 
 import (
 	"SuperQueue/logger"
-	"fmt"
 	"os"
 	"os/signal"
 	"runtime"
 	"runtime/pprof"
-	"strconv"
 	"syscall"
 
 	"github.com/sirupsen/logrus"
@@ -18,6 +16,7 @@ var (
 )
 
 func main() {
+	logger.Logger.Logger.SetLevel(logrus.DebugLevel)
 	if os.Getenv("TEST_MODE") == "true" {
 		logger.Warn("TEST_MODE true, enabling cpu profiling")
 		f, perr := os.Create("cpu.pprof")
@@ -32,26 +31,11 @@ func main() {
 		defer f.Close()
 		defer pprof.StopCPUProfile()
 	}
+	CheckFlags()
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-
-	logger.Logger.Logger.SetLevel(logrus.DebugLevel)
 	logger.Info("Starting SuperQueue")
-
-	if PARTITION == "" {
-		logger.Error("Failed to provide a partition using the PARTITION env var, exiting")
-		os.Exit(1)
-	}
-	if ADVERTISE_ADDRESS == "" {
-		logger.Error("Failed to provide a advertise address using the ADVERTISE_ADDRESS env var, exiting")
-		os.Exit(1)
-	}
-	var err error
-	QueueMaxLen, err = strconv.ParseInt(GetEnvOrFail("QUEUE_LEN"), 10, 64)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to calculate int64 for QUEUE_LEN of %s", GetEnvOrFail("QUEUE_LEN")))
-	}
 
 	SQ = NewSuperQueue("test-ns", PARTITION, 5, QueueMaxLen)
 	// Try to setup service discovery

@@ -25,15 +25,16 @@ services:
       - 127.0.0.1:9090:9090
   sq1:
     build: ./
-    environment:
-      - HTTP_PORT=8080
-      - ETCD_HOSTS=etcd:2379
-      - QUEUE_LEN=1000000
-      - PARTITION=sq1
-      - SCYLLA_HOSTS=scylla:9042
-      - "ADVERTISE_ADDRESS=http://sq1:8080"
     depends_on:
       - scylla
+    command:
+      - /app/superQueue
+      - -partition=sq1
+      - -queue-len=1000000
+      - -port=8080
+      - -advertise-url=http://sq1:8080
+      - -scylla-hosts=scylla:9042
+      - -etcd-hosts=etcd:2379
   sq2:
     build: ./
     environment:
@@ -42,7 +43,7 @@ services:
       - QUEUE_LEN=1000000
       - PARTITION=sq2
       - SCYLLA_HOSTS=scylla:9042
-      - "ADVERTISE_ADDRESS=http://sq2:8080"
+      - "ADVERTISE_URL=http://sq2:8080"
     depends_on:
       - scylla
 volumes:

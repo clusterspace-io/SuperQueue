@@ -60,12 +60,11 @@ var (
 
 func DBConnect() {
 	var cluster *gocql.ClusterConfig
-	scyllaHost := os.Getenv("SCYLLA_HOSTS")
-	if scyllaHost == "" {
+	if SCYLLA_HOSTS == "" {
 		logger.Debug("No SCYLLA_HOSTS env var found, using localhost")
 		cluster = gocql.NewCluster("localhost:9042")
 	} else {
-		cluster = gocql.NewCluster(strings.Split(scyllaHost, ",")...)
+		cluster = gocql.NewCluster(strings.Split(SCYLLA_HOSTS, ",")...)
 	}
 	cluster.Keyspace = "sq_ksp"
 	cluster.Consistency = gocql.Quorum
@@ -85,12 +84,11 @@ func DBConnect() {
 
 func DBConnectWithoutKeyspace() {
 	var cluster *gocql.ClusterConfig
-	scyllaHost := os.Getenv("SCYLLA_HOSTS")
-	if scyllaHost == "" {
+	if SCYLLA_HOSTS == "" {
 		logger.Debug("No SCYLLA_HOSTS env var found, using localhost")
 		cluster = gocql.NewCluster("localhost:9042")
 	} else {
-		cluster = gocql.NewCluster(scyllaHost)
+		cluster = gocql.NewCluster(SCYLLA_HOSTS)
 	}
 	cluster.Consistency = gocql.All
 
