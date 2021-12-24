@@ -19,17 +19,25 @@ spec:
         - name: sq
           image: $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/sq:$SEM_VER
           env:
-            - name: DD_AGENT_HOST
+            - name: MY_POD_NAME
               valueFrom:
                 fieldRef:
-                  fieldPath: status.hostIP
+                  fieldPath: metadata.name
+          command: ["/app/superQueue"]
+          args:
+            - -partition=$MY_POD_NAME
+            - -queue-len=1000000
+            - -port=8080
+            - -advertise-url="http://$MY_POD_NAME.sq.default.svc.cluster.local:8080"
+            - -scylla-hosts=scylla.default.svc.cluster.local:9042
+            - -etcd-hosts=etcd.default.svc.cluster.local:2379
           resources:
-            requests: # Guaranteed, keep high enough to trigger autoscaling
-              memory: '1024M' # if exceeded, the pod could be evicted if the node runs out of memory for critical stuff
-              cpu: '1000m' # Should be average at load
-            limits: # killed at (mem), removed CPU limit since probes will detect bad pods
-              memory: '2048M' # kills if exceeded, will be restarted
-              # cpu: "1000m"
+            requests:
+              memory: '1024M'
+              cpu: '1'
+            limits:
+              memory: '2048M'
+              cpu: "1"
           ports:
             - containerPort: 8080
               protocol: TCP
