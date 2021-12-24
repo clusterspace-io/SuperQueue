@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sq-ss
+  labels:
+    app: sq
+spec:
+  replicas: 1
+  serviceName: sq
+  selector:
+    matchLabels:
+      app: sq
+  template:
+    metadata:
+      labels:
+        app: sq
+    spec:
+      containers:
+        - name: sq
+          image: $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/sq:$SEM_VER
+          env:
+            - name: DD_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+          resources:
+            requests: # Guaranteed, keep high enough to trigger autoscaling
+              memory: '1024M' # if exceeded, the pod could be evicted if the node runs out of memory for critical stuff
+              cpu: '1000m' # Should be average at load
+            limits: # killed at (mem), removed CPU limit since probes will detect bad pods
+              memory: '2048M' # kills if exceeded, will be restarted
+              # cpu: "1000m"
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sq-service
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+  clusterIP: None
+  selector:
+    app: sq
