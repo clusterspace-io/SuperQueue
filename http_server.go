@@ -3,6 +3,7 @@ package main
 import (
 	"SuperQueue/logger"
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/segmentio/ksuid"
 )
 
@@ -56,8 +58,17 @@ func StartHTTPServer() {
 
 func IncrementCounter(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		atomic.AddInt64(&TotalRequests, 1)
-		return next(c)
+		next(c) // Wait for all other handlers
+		TotalRequestsCounter.Inc()
+		theUrl := c.Request().URL.String()
+		// We don't want the cardinality of record ids destroying our metrics
+		if strings.HasPrefix(c.Request().URL.String(), "/ack") {
+			theUrl = "/ack"
+		} else if strings.HasPrefix(c.Request().URL.String(), "/nack") {
+			theUrl = "/nack"
+		}
+		HTTPResponsesMetric.WithLabelValues(fmt.Sprintf("%d", c.Response().Status), theUrl).Inc()
+		return nil
 	}
 }
 
@@ -67,7 +78,7 @@ func PostRecordLatencyCounter(next echo.HandlerFunc) echo.HandlerFunc {
 		if err := next(c); err != nil {
 			c.Error(err)
 		}
-		atomic.AddInt64(&PostRecordLatency, int64(time.Since(start)))
+		PostRecordLatency.Observe(float64(time.Since(start) / time.Millisecond))
 		return nil
 	}
 }
@@ -78,7 +89,7 @@ func GetRecordLatencyCounter(next echo.HandlerFunc) echo.HandlerFunc {
 		if err := next(c); err != nil {
 			c.Error(err)
 		}
-		atomic.AddInt64(&GetRecordLatency, int64(time.Since(start)))
+		GetRecordLatency.Observe(float64(time.Since(start) / time.Millisecond))
 		return nil
 	}
 }
@@ -89,7 +100,7 @@ func AckRecordLatencyCounter(next echo.HandlerFunc) echo.HandlerFunc {
 		if err := next(c); err != nil {
 			c.Error(err)
 		}
-		atomic.AddInt64(&AckLatency, int64(time.Since(start)))
+		AckLatency.Observe(float64(time.Since(start) / time.Millisecond))
 		return nil
 	}
 }
@@ -100,7 +111,7 @@ func NackRecordLatencyCounter(next echo.HandlerFunc) echo.HandlerFunc {
 		if err := next(c); err != nil {
 			c.Error(err)
 		}
-		atomic.AddInt64(&NackLatency, int64(time.Since(start)))
+		NackLatency.Observe(float64(time.Since(start) / time.Millisecond))
 		return nil
 	}
 }
@@ -116,7 +127,7 @@ func (s *HTTPServer) registerRoutes() {
 	s.Echo.POST("/ack/:recordID", Post_AckRecord, AckRecordLatencyCounter)
 	s.Echo.POST("/nack/:recordID", Post_NackRecord, NackRecordLatencyCounter)
 
-	s.Echo.GET("/metrics", Get_Metrics)
+	s.Echo.GET("/metrics", wrapPromHandler)
 
 	if os.Getenv("TEST_MODE") == "true" {
 		logger.Warn("TEST_MODE true, enabling debug routes")
@@ -131,6 +142,7 @@ func (s *HTTPServer) registerRoutes() {
 		d.GET("/pprof/symbol", wrapStdHandler)
 		d.GET("/pprof/trace", wrapStdHandler)
 	}
+	SetupMetrics()
 }
 
 func ValidateRequest(c echo.Context, s interface{}) error {
@@ -153,12 +165,19 @@ func wrapStdHandler(c echo.Context) error {
 	return echo.NewHTTPError(http.StatusNotFound)
 }
 
+func wrapPromHandler(c echo.Context) error {
+	h := promhttp.Handler()
+	h.ServeHTTP(c.Response(), c.Request())
+	return nil
+}
+
 func Post_Record(c echo.Context) error {
 	if atomic.LoadInt64(&QueuedMessages)+atomic.LoadInt64(&DelayedMessages)+atomic.LoadInt64(&InFlightMessages)+1 > QueueMaxLen {
 		// We could exceed the max length if we do this
 		return c.String(409, "Could exceed queue max length")
 	}
-	defer atomic.AddInt64(&PostRecordRequests, 1)
+	// defer atomic.AddInt64(&PostRecordRequests, 1)
+	defer PostRecordRequestCounter.Inc()
 	bodyBytes, err := ioutil.ReadAll(c.Request().Body)
 	if err != nil {
 		logger.Error("Failed to read body bytes:")
@@ -168,7 +187,6 @@ func Post_Record(c echo.Context) error {
 	body := new(PostRecordRequest)
 	if err := ValidateRequest(c, body); err != nil {
 		logger.Debug("Validation failed ", err)
-		atomic.AddInt64(&HTTP400s, 1)
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid body")
 	}
 
@@ -197,20 +215,21 @@ func Post_Record(c echo.Context) error {
 		return c.String(500, err.Error())
 	}
 
-	atomic.AddInt64(&QueueMessageSize, int64(len(bodyBytes)))
+	QueueMessageSizeMetric.Observe(float64(len(bodyBytes)))
 	return c.String(http.StatusCreated, "")
 }
 
 func Get_Record(c echo.Context) error {
-	defer atomic.AddInt64(&GetRecordRequests, 1)
+	// defer atomic.AddInt64(&GetRecordRequests, 1)
+	GetRecordRequestCounter.Inc()
 	item, err := SQ.Dequeue()
 	if err != nil {
-		atomic.AddInt64(&HTTP500s, 1)
 		return c.String(500, "Failed to dequeue record")
 	}
 	// Empty
 	if item == nil {
 		atomic.AddInt64(&EmptyQueueResponses, 1)
+		EmptyQueueResponsesCounter.Inc()
 		return c.String(http.StatusNoContent, "Empty")
 	}
 	return c.JSON(200, map[string]interface{}{
@@ -223,7 +242,6 @@ func Get_Record(c echo.Context) error {
 func Post_AckRecord(c echo.Context) error {
 	recordID := c.Param("recordID")
 	if recordID == "" {
-		atomic.AddInt64(&HTTP400s, 1)
 		return c.String(400, "No record ID given")
 	}
 
@@ -238,13 +256,13 @@ func Post_AckRecord(c echo.Context) error {
 	// Check if record exists
 	if !exists {
 		atomic.AddInt64(&AckMisses, 1)
+		AckMissesCounter.Inc()
 		return c.String(404, "Record not found")
 	}
 
 	// Ack the record
 	err := item.AckItem(SQ)
 	if err != nil {
-		atomic.AddInt64(&HTTP500s, 1)
 		return c.String(500, "Failed to ack record")
 	}
 	return c.String(200, "")
@@ -253,7 +271,6 @@ func Post_AckRecord(c echo.Context) error {
 func Post_NackRecord(c echo.Context) error {
 	recordID := c.Param("recordID")
 	if recordID == "" {
-		atomic.AddInt64(&HTTP400s, 1)
 		return c.String(400, "No record ID given")
 	}
 
@@ -266,13 +283,13 @@ func Post_NackRecord(c echo.Context) error {
 	// Check if record exists
 	if !exists {
 		atomic.AddInt64(&NackMisses, 1)
+		NackMissesCounter.Inc()
 		return c.String(404, "Record not found")
 	}
 
 	body := new(NackRecordRequest)
 	if err := ValidateRequest(c, body); err != nil {
 		logger.Debug("Validation failed ", err)
-		atomic.AddInt64(&HTTP400s, 1)
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid body")
 	}
 
@@ -286,12 +303,7 @@ func Post_NackRecord(c echo.Context) error {
 	err := item.NackItem(SQ, delayMS)
 	if err != nil {
 		logger.Error(err)
-		atomic.AddInt64(&HTTP500s, 1)
 		return c.String(500, "Failed to ack record")
 	}
 	return c.String(200, "")
-}
-
-func Get_Metrics(c echo.Context) error {
-	return c.String(200, GetMetrics())
 }

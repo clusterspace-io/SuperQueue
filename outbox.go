@@ -13,10 +13,15 @@ func NewOutbox(sq *SuperQueue, bufferLength int64) *Outbox {
 	return ob
 }
 
-// Adds an item to the outbox in memory.
-func (o *Outbox) Add(item *QueueItem) {
+// Adds an item to the outbox in memory. Returns whether it was full.
+func (o *Outbox) Add(item *QueueItem) bool {
 	// TODO: Handle when full
-	o.MessageChan <- item
+	select {
+	case o.MessageChan <- item:
+		return false
+	default:
+		return true
+	}
 }
 
 // Pops an item from the outbox in memory.
