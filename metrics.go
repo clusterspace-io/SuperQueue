@@ -25,8 +25,9 @@ var (
 	})
 
 	QueueMessageSizeMetric = prometheus.NewHistogram(prometheus.HistogramOpts{
-		Name: "queue_message_size",
-		Help: "The size of the messages queued",
+		Name:    "queue_message_size",
+		Help:    "The size in bytes of the messages queued",
+		Buckets: prometheus.ExponentialBuckets(10, 2, 8),
 	})
 
 	QueueMaxLen       int64 = 0
@@ -42,19 +43,59 @@ var (
 	})
 
 	TimedoutMessages       int64 = 0
-	TimedoutMessagesMetric       = prometheus.NewHistogram(prometheus.HistogramOpts{
+	TimedoutMessagesMetric       = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "timedout_messages",
 		Help: "The number of timedout messages",
 	})
 
-	AckedMessages       int64 = 0
-	NackedMessages      int64 = 0
-	PostRecordRequests  int64 = 0
-	PostRecordLatency   int64 = 0
-	GetRecordRequests   int64 = 0
-	GetRecordLatency    int64 = 0
-	AckMisses           int64 = 0
-	NackMisses          int64 = 0
+	AckedMessages        int64 = 0
+	AckedMessagesCounter       = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "acked_messages",
+		Help: "The number of acked messages",
+	})
+
+	NackedMessages        int64 = 0
+	NackedMessagesCounter       = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "nacked_messages",
+		Help: "The number of nacked messages",
+	})
+
+	PostRecordRequests       int64 = 0
+	PostRecordRequestCounter       = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "post_record_reqs",
+		Help: "The total number of POST /record requests",
+	})
+
+	PostRecordLatency = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name:    "post_record_latency",
+		Help:    "The latency of POST /record requests in milliseconds",
+		Buckets: prometheus.ExponentialBuckets(1, 3, 10),
+	})
+
+	GetRecordRequests       int64 = 0
+	GetRecordRequestCounter       = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "get_record_reqs",
+		Help: "The total number of GET /record requests",
+	})
+
+	GetRecordLatency = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name:    "get_record_latency",
+		Help:    "The latency of GET /record requests in milliseconds",
+		Buckets: prometheus.ExponentialBuckets(1, 3, 10),
+	})
+
+	AckMisses        int64 = 0
+	AckMissesCounter       = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "ack_misses",
+		Help: "The number of POST /ack requests that miss",
+	})
+
+	NackMisses        int64 = 0
+	NackMissesCounter       = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "nack_misses",
+		Help: "The number of POST /nack requests that miss",
+	})
+
 	EmptyQueueResponses int64 = 0
 	FullQueueResponses  int64 = 0
 	TotalRequests       int64 = 0
@@ -75,24 +116,25 @@ func FormatMetric(metricName, metricType, description string, value interface{})
 	return fmt.Sprintf("#TYPE %s %s\n#HELP %s %s\n%s{host=%s, queue=%s, partition=%s} %v", metricName, metricType, metricName, description, metricName, hn, SQ.Name, SQ.Partition, value)
 }
 
+func SetupMetrics() {
+	prometheus.Register(InFlightMessagesMetric)
+	prometheus.Register(QueuedMessagesMetric)
+	prometheus.Register(QueueMessageSizeMetric)
+	prometheus.Register(QueueMaxLenMetric)
+	prometheus.Register(DelayedMessagesMetric)
+	prometheus.Register(TimedoutMessagesMetric)
+	prometheus.Register(AckedMessagesCounter)
+	prometheus.Register(NackedMessagesCounter)
+	prometheus.Register(PostRecordRequestCounter)
+	prometheus.Register(PostRecordLatency)
+	prometheus.Register(GetRecordRequestCounter)
+	prometheus.Register(GetRecordRequestCounter)
+	prometheus.Register(AckMissesCounter)
+	prometheus.Register(NackMissesCounter)
+}
+
 func GetMetrics() string {
 	metrics := make([]string, 30)
-
-	metrics = append(metrics, FormatMetric("acked_messages", "counter", "The total number of acknowledged messages", atomic.LoadInt64(&AckedMessages)))
-
-	metrics = append(metrics, FormatMetric("nacked_messages", "counter", "The total number of negatively messages", atomic.LoadInt64(&NackedMessages)))
-
-	metrics = append(metrics, FormatMetric("post_record_reqs", "counter", "The total number of POST /record requests", atomic.LoadInt64(&PostRecordRequests)))
-
-	metrics = append(metrics, FormatMetric("post_record_latency", "counter", "The sum of POST /record latency", atomic.LoadInt64(&PostRecordLatency)))
-
-	metrics = append(metrics, FormatMetric("get_record_reqs", "counter", "The total number of GET /record requests", atomic.LoadInt64(&GetRecordRequests)))
-
-	metrics = append(metrics, FormatMetric("get_record_latency", "counter", "The sum of GET /record latencies", atomic.LoadInt64(&GetRecordLatency)))
-
-	metrics = append(metrics, FormatMetric("ack_misses", "counter", "The total number of ack requests that fail to ack a message", atomic.LoadInt64(&AckMisses)))
-
-	metrics = append(metrics, FormatMetric("nack_misses", "counter", "The total number of nack requests that fail to nack a message", atomic.LoadInt64(&NackMisses)))
 
 	metrics = append(metrics, FormatMetric("empty_queue_responses", "counter", "The total number of GET /record requests that result in an empty queue response", atomic.LoadInt64(&EmptyQueueResponses)))
 

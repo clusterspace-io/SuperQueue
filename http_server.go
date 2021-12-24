@@ -15,6 +15,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/segmentio/ksuid"
 )
 
@@ -67,7 +68,7 @@ func PostRecordLatencyCounter(next echo.HandlerFunc) echo.HandlerFunc {
 		if err := next(c); err != nil {
 			c.Error(err)
 		}
-		atomic.AddInt64(&PostRecordLatency, int64(time.Since(start)))
+		PostRecordLatency.Observe(float64(time.Since(start) / time.Millisecond))
 		return nil
 	}
 }
@@ -78,7 +79,7 @@ func GetRecordLatencyCounter(next echo.HandlerFunc) echo.HandlerFunc {
 		if err := next(c); err != nil {
 			c.Error(err)
 		}
-		atomic.AddInt64(&GetRecordLatency, int64(time.Since(start)))
+		GetRecordLatency.Observe(float64(time.Since(start) / time.Millisecond))
 		return nil
 	}
 }
@@ -116,7 +117,7 @@ func (s *HTTPServer) registerRoutes() {
 	s.Echo.POST("/ack/:recordID", Post_AckRecord, AckRecordLatencyCounter)
 	s.Echo.POST("/nack/:recordID", Post_NackRecord, NackRecordLatencyCounter)
 
-	s.Echo.GET("/metrics", Get_Metrics)
+	s.Echo.GET("/metrics", wrapPromHandler)
 
 	if os.Getenv("TEST_MODE") == "true" {
 		logger.Warn("TEST_MODE true, enabling debug routes")
@@ -131,6 +132,7 @@ func (s *HTTPServer) registerRoutes() {
 		d.GET("/pprof/symbol", wrapStdHandler)
 		d.GET("/pprof/trace", wrapStdHandler)
 	}
+	SetupMetrics()
 }
 
 func ValidateRequest(c echo.Context, s interface{}) error {
@@ -153,12 +155,19 @@ func wrapStdHandler(c echo.Context) error {
 	return echo.NewHTTPError(http.StatusNotFound)
 }
 
+func wrapPromHandler(c echo.Context) error {
+	h := promhttp.Handler()
+	h.ServeHTTP(c.Response(), c.Request())
+	return nil
+}
+
 func Post_Record(c echo.Context) error {
 	if atomic.LoadInt64(&QueuedMessages)+atomic.LoadInt64(&DelayedMessages)+atomic.LoadInt64(&InFlightMessages)+1 > QueueMaxLen {
 		// We could exceed the max length if we do this
 		return c.String(409, "Could exceed queue max length")
 	}
-	defer atomic.AddInt64(&PostRecordRequests, 1)
+	// defer atomic.AddInt64(&PostRecordRequests, 1)
+	defer PostRecordRequestCounter.Inc()
 	bodyBytes, err := ioutil.ReadAll(c.Request().Body)
 	if err != nil {
 		logger.Error("Failed to read body bytes:")
@@ -202,7 +211,8 @@ func Post_Record(c echo.Context) error {
 }
 
 func Get_Record(c echo.Context) error {
-	defer atomic.AddInt64(&GetRecordRequests, 1)
+	// defer atomic.AddInt64(&GetRecordRequests, 1)
+	GetRecordRequestCounter.Inc()
 	item, err := SQ.Dequeue()
 	if err != nil {
 		atomic.AddInt64(&HTTP500s, 1)
@@ -238,6 +248,7 @@ func Post_AckRecord(c echo.Context) error {
 	// Check if record exists
 	if !exists {
 		atomic.AddInt64(&AckMisses, 1)
+		AckMissesCounter.Inc()
 		return c.String(404, "Record not found")
 	}
 

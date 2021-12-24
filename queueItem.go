@@ -59,7 +59,7 @@ func (i *QueueItem) ReEnqueueItem(sq *SuperQueue, timedout bool, delayMS *int64)
 				return err
 			}
 			atomic.AddInt64(&TimedoutMessages, 1)
-			TimedoutMessagesMetric.Observe(1)
+			TimedoutMessagesMetric.Inc()
 		}
 		i.InFlight = false
 		sq.InFlightMapLock.Lock()
@@ -120,6 +120,7 @@ func (i *QueueItem) AckItem(sq *SuperQueue) error {
 	// Remove from delay mapmap
 	sq.DelayMapMap.DeleteItem(i)
 	atomic.AddInt64(&AckedMessages, 1)
+	AckedMessagesCounter.Inc()
 	atomic.AddInt64(&InFlightMessages, -1)
 	InFlightMessagesMetric.Dec()
 	return nil
@@ -142,6 +143,7 @@ func (i *QueueItem) NackItem(sq *SuperQueue, delayMS *int64) error {
 	// Check whether we are delayed
 	i.ReEnqueueItem(sq, false, delayMS)
 	atomic.AddInt64(&NackedMessages, 1)
+	NackedMessagesCounter.Inc()
 	return nil
 }
 
