@@ -115,8 +115,10 @@ func (sq *SuperQueue) Dequeue() (*QueueItem, error) {
 	sq.DelayMapMap.AddItem(item, time.Now().Add(time.Duration(item.InFlightTimeoutSeconds)*time.Second).UnixMilli())
 	// Update metrics
 	atomic.AddInt64(&InFlightMessages, 1)
-	atomic.AddInt64(&TotalInFlightMessages, 1)
+	InFlightMessagesMetric.Inc()
+	// atomic.AddInt64(&TotalInFlightMessages, 1)
 	atomic.AddInt64(&QueuedMessages, -1)
+	QueuedMessagesMetric.Dec()
 	// Return
 	return item, nil
 }

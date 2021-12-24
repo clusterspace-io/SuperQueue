@@ -197,7 +197,7 @@ func Post_Record(c echo.Context) error {
 		return c.String(500, err.Error())
 	}
 
-	atomic.AddInt64(&QueueMessageSize, int64(len(bodyBytes)))
+	QueueMessageSizeMetric.Observe(float64(len(bodyBytes)))
 	return c.String(http.StatusCreated, "")
 }
 

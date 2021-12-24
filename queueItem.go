@@ -41,14 +41,15 @@ type QueueItemStateDB struct {
 func (i *QueueItem) EnqueueItem(sq *SuperQueue) error {
 	// Add item to the queue
 	sq.Outbox.Add(i)
-	atomic.AddInt64(&QueuedMessages, 1)
-	atomic.AddInt64(&TotalQueuedMessages, 1)
+	QueuedMessagesMetric.Inc()
+	// atomic.AddInt64(&TotalQueuedMessages, 1)
 	return nil
 }
 
 func (i *QueueItem) ReEnqueueItem(sq *SuperQueue, timedout bool, delayMS *int64) error {
 	if i.InFlight {
 		atomic.AddInt64(&InFlightMessages, -1)
+		InFlightMessagesMetric.Dec()
 		if timedout {
 			timeoutMSG := "timedout"
 			err := i.addItemState(sq.Name, "timedout", time.Now(), nil, &timeoutMSG, &timeoutMSG)
@@ -58,6 +59,7 @@ func (i *QueueItem) ReEnqueueItem(sq *SuperQueue, timedout bool, delayMS *int64)
 				return err
 			}
 			atomic.AddInt64(&TimedoutMessages, 1)
+			TimedoutMessagesMetric.Observe(1)
 		}
 		i.InFlight = false
 		sq.InFlightMapLock.Lock()
@@ -66,6 +68,7 @@ func (i *QueueItem) ReEnqueueItem(sq *SuperQueue, timedout bool, delayMS *int64)
 	} else {
 		// Otherwise we are delayed
 		atomic.AddInt64(&DelayedMessages, -1)
+		DelayedMessagesMetric.Dec()
 	}
 	if delayMS != nil {
 		// If delayed, put in mapmap
@@ -96,6 +99,7 @@ func (i *QueueItem) DelayEnqueueItem(sq *SuperQueue, delayTime time.Time) error 
 	// Add item to delay mapmap
 	sq.DelayMapMap.AddItem(i, delayTime.UnixMilli())
 	atomic.AddInt64(&DelayedMessages, 1)
+	DelayedMessagesMetric.Inc()
 	return nil
 }
 
@@ -117,6 +121,7 @@ func (i *QueueItem) AckItem(sq *SuperQueue) error {
 	sq.DelayMapMap.DeleteItem(i)
 	atomic.AddInt64(&AckedMessages, 1)
 	atomic.AddInt64(&InFlightMessages, -1)
+	InFlightMessagesMetric.Dec()
 	return nil
 }
 

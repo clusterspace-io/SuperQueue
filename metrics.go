@@ -7,32 +7,61 @@ import (
 	"runtime"
 	"strings"
 	"sync/atomic"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 var (
-	InFlightMessages      int64 = 0
-	TotalInFlightMessages int64 = 0
-	QueuedMessages        int64 = 0
-	QueueMessageSize      int64 = 0
-	QueueMaxLen           int64 = 0
-	TotalQueuedMessages   int64 = 0
+	InFlightMessages       int64 = 0
+	InFlightMessagesMetric       = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "in_flight_messages",
+		Help: "The current number of in-flight messages",
+	})
+
+	QueuedMessages       int64 = 0
+	QueuedMessagesMetric       = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "queued_messages",
+		Help: "The current number of queued messages",
+	})
+
+	QueueMessageSizeMetric = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name: "queue_message_size",
+		Help: "The size of the messages queued",
+	})
+
+	QueueMaxLen       int64 = 0
+	QueueMaxLenMetric       = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "queue_max_len",
+		Help: "The max number of queued messages allowed in the partition",
+	})
+
 	DelayedMessages       int64 = 0
-	TimedoutMessages      int64 = 0
-	AckedMessages         int64 = 0
-	NackedMessages        int64 = 0
-	PostRecordRequests    int64 = 0
-	PostRecordLatency     int64 = 0
-	GetRecordRequests     int64 = 0
-	GetRecordLatency      int64 = 0
-	AckMisses             int64 = 0
-	NackMisses            int64 = 0
-	EmptyQueueResponses   int64 = 0
-	FullQueueResponses    int64 = 0
-	TotalRequests         int64 = 0
-	HTTP500s              int64 = 0
-	HTTP400s              int64 = 0
-	AckLatency            int64 = 0
-	NackLatency           int64 = 0
+	DelayedMessagesMetric       = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "delayed_messages",
+		Help: "The current number of delayed messages",
+	})
+
+	TimedoutMessages       int64 = 0
+	TimedoutMessagesMetric       = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name: "timedout_messages",
+		Help: "The number of timedout messages",
+	})
+
+	AckedMessages       int64 = 0
+	NackedMessages      int64 = 0
+	PostRecordRequests  int64 = 0
+	PostRecordLatency   int64 = 0
+	GetRecordRequests   int64 = 0
+	GetRecordLatency    int64 = 0
+	AckMisses           int64 = 0
+	NackMisses          int64 = 0
+	EmptyQueueResponses int64 = 0
+	FullQueueResponses  int64 = 0
+	TotalRequests       int64 = 0
+	HTTP500s            int64 = 0
+	HTTP400s            int64 = 0
+	AckLatency          int64 = 0
+	NackLatency         int64 = 0
 
 	Metrics = []string{}
 )
@@ -48,15 +77,6 @@ func FormatMetric(metricName, metricType, description string, value interface{})
 
 func GetMetrics() string {
 	metrics := make([]string, 30)
-	metrics = append(metrics, FormatMetric("in_flight_messages", "gauge", "The current number of in-flight messages", atomic.LoadInt64(&InFlightMessages)))
-	metrics = append(metrics, FormatMetric("total_in_flight_messages", "counter", "The total number of in-flight messages ever sent", atomic.LoadInt64(&TotalInFlightMessages)))
-	metrics = append(metrics, FormatMetric("queued_messages", "gauge", "The current number of queued messages", atomic.LoadInt64(&QueuedMessages)))
-	metrics = append(metrics, FormatMetric("queued_messages_size", "counter", "The sum of all queued message body byte lengths", atomic.LoadInt64(&QueueMessageSize)))
-	metrics = append(metrics, FormatMetric("total_queued_messages", "counter", "The sum of all queued messages since process start", atomic.LoadInt64(&TotalQueuedMessages)))
-	metrics = append(metrics, FormatMetric("queue_max_len", "gauge", "The max number of queued messages allowed", atomic.LoadInt64(&QueueMaxLen)))
-	metrics = append(metrics, FormatMetric("delayed_messages", "gauge", "The current number of delayed messages", atomic.LoadInt64(&DelayedMessages)))
-
-	metrics = append(metrics, FormatMetric("timedout_messages", "counter", "The total number of timedout messages", atomic.LoadInt64(&TimedoutMessages)))
 
 	metrics = append(metrics, FormatMetric("acked_messages", "counter", "The total number of acknowledged messages", atomic.LoadInt64(&AckedMessages)))
 
