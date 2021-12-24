@@ -3,6 +3,7 @@ package main
 import (
 	"SuperQueue/logger"
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -57,8 +58,17 @@ func StartHTTPServer() {
 
 func IncrementCounter(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		atomic.AddInt64(&TotalRequests, 1)
-		return next(c)
+		next(c) // Wait for all other handlers
+		TotalRequestsCounter.Inc()
+		theUrl := c.Request().URL.String()
+		// We don't want the cardinality of record ids destroying our metrics
+		if strings.HasPrefix(c.Request().URL.String(), "/ack") {
+			theUrl = "/ack"
+		} else if strings.HasPrefix(c.Request().URL.String(), "/nack") {
+			theUrl = "/nack"
+		}
+		HTTPResponsesMetric.WithLabelValues(fmt.Sprintf("%d", c.Response().Status), theUrl).Inc()
+		return nil
 	}
 }
 
@@ -90,7 +100,7 @@ func AckRecordLatencyCounter(next echo.HandlerFunc) echo.HandlerFunc {
 		if err := next(c); err != nil {
 			c.Error(err)
 		}
-		atomic.AddInt64(&AckLatency, int64(time.Since(start)))
+		AckLatency.Observe(float64(time.Since(start) / time.Millisecond))
 		return nil
 	}
 }
@@ -101,7 +111,7 @@ func NackRecordLatencyCounter(next echo.HandlerFunc) echo.HandlerFunc {
 		if err := next(c); err != nil {
 			c.Error(err)
 		}
-		atomic.AddInt64(&NackLatency, int64(time.Since(start)))
+		NackLatency.Observe(float64(time.Since(start) / time.Millisecond))
 		return nil
 	}
 }
@@ -177,7 +187,6 @@ func Post_Record(c echo.Context) error {
 	body := new(PostRecordRequest)
 	if err := ValidateRequest(c, body); err != nil {
 		logger.Debug("Validation failed ", err)
-		atomic.AddInt64(&HTTP400s, 1)
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid body")
 	}
 
@@ -215,12 +224,12 @@ func Get_Record(c echo.Context) error {
 	GetRecordRequestCounter.Inc()
 	item, err := SQ.Dequeue()
 	if err != nil {
-		atomic.AddInt64(&HTTP500s, 1)
 		return c.String(500, "Failed to dequeue record")
 	}
 	// Empty
 	if item == nil {
 		atomic.AddInt64(&EmptyQueueResponses, 1)
+		EmptyQueueResponsesCounter.Inc()
 		return c.String(http.StatusNoContent, "Empty")
 	}
 	return c.JSON(200, map[string]interface{}{
@@ -233,7 +242,6 @@ func Get_Record(c echo.Context) error {
 func Post_AckRecord(c echo.Context) error {
 	recordID := c.Param("recordID")
 	if recordID == "" {
-		atomic.AddInt64(&HTTP400s, 1)
 		return c.String(400, "No record ID given")
 	}
 
@@ -255,7 +263,6 @@ func Post_AckRecord(c echo.Context) error {
 	// Ack the record
 	err := item.AckItem(SQ)
 	if err != nil {
-		atomic.AddInt64(&HTTP500s, 1)
 		return c.String(500, "Failed to ack record")
 	}
 	return c.String(200, "")
@@ -264,7 +271,6 @@ func Post_AckRecord(c echo.Context) error {
 func Post_NackRecord(c echo.Context) error {
 	recordID := c.Param("recordID")
 	if recordID == "" {
-		atomic.AddInt64(&HTTP400s, 1)
 		return c.String(400, "No record ID given")
 	}
 
@@ -277,13 +283,13 @@ func Post_NackRecord(c echo.Context) error {
 	// Check if record exists
 	if !exists {
 		atomic.AddInt64(&NackMisses, 1)
+		NackMissesCounter.Inc()
 		return c.String(404, "Record not found")
 	}
 
 	body := new(NackRecordRequest)
 	if err := ValidateRequest(c, body); err != nil {
 		logger.Debug("Validation failed ", err)
-		atomic.AddInt64(&HTTP400s, 1)
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid body")
 	}
 
@@ -297,12 +303,7 @@ func Post_NackRecord(c echo.Context) error {
 	err := item.NackItem(SQ, delayMS)
 	if err != nil {
 		logger.Error(err)
-		atomic.AddInt64(&HTTP500s, 1)
 		return c.String(500, "Failed to ack record")
 	}
 	return c.String(200, "")
-}
-
-func Get_Metrics(c echo.Context) error {
-	return c.String(200, GetMetrics())
 }

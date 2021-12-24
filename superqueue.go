@@ -89,7 +89,7 @@ func (sq *SuperQueue) Enqueue(item *QueueItem, delayTime *time.Time) error {
 			logger.Error(err)
 			return err
 		}
-		item.EnqueueItem(sq)
+		return item.EnqueueItem(sq)
 	}
 
 	return nil

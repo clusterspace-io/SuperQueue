@@ -2,6 +2,7 @@ package main
 
 import (
 	"SuperQueue/logger"
+	"fmt"
 	"sync/atomic"
 	"time"
 )
@@ -40,8 +41,14 @@ type QueueItemStateDB struct {
 // Adds a new queue item to the DB and immediately queues it
 func (i *QueueItem) EnqueueItem(sq *SuperQueue) error {
 	// Add item to the queue
-	sq.Outbox.Add(i)
-	QueuedMessagesMetric.Inc()
+	full := sq.Outbox.Add(i)
+	if full {
+		atomic.AddInt64(&FullQueueResponses, 1)
+		FullQueueResponsesCounter.Inc()
+		return fmt.Errorf("outbox full")
+	} else {
+		QueuedMessagesMetric.Inc()
+	}
 	// atomic.AddInt64(&TotalQueuedMessages, 1)
 	return nil
 }

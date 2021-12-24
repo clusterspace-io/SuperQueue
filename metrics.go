@@ -4,9 +4,6 @@ import (
 	"SuperQueue/logger"
 	"fmt"
 	"os"
-	"runtime"
-	"strings"
-	"sync/atomic"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -90,19 +87,45 @@ var (
 		Help: "The number of POST /ack requests that miss",
 	})
 
+	AckLatency = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name:    "ack_record_latency",
+		Help:    "The latency of POST /ack requests in milliseconds",
+		Buckets: prometheus.ExponentialBuckets(1, 3, 10),
+	})
+
 	NackMisses        int64 = 0
 	NackMissesCounter       = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "nack_misses",
 		Help: "The number of POST /nack requests that miss",
 	})
 
-	EmptyQueueResponses int64 = 0
-	FullQueueResponses  int64 = 0
-	TotalRequests       int64 = 0
-	HTTP500s            int64 = 0
-	HTTP400s            int64 = 0
-	AckLatency          int64 = 0
-	NackLatency         int64 = 0
+	NackLatency = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name:    "nack_record_latency",
+		Help:    "The latency of POST /nack requests in milliseconds",
+		Buckets: prometheus.ExponentialBuckets(1, 3, 10),
+	})
+
+	EmptyQueueResponses        int64 = 0
+	EmptyQueueResponsesCounter       = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "empty_queue_responses",
+		Help: "Number of empty queue responses",
+	})
+
+	FullQueueResponses        int64 = 0
+	FullQueueResponsesCounter       = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "full_queue_responses",
+		Help: "Number of full queue responses",
+	})
+
+	TotalRequestsCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "total_reqs",
+		Help: "Total number of http requests",
+	})
+
+	HTTPResponsesMetric = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "http_responses",
+		Help: "Total number of http requests",
+	}, []string{"code", "endpoint"})
 
 	Metrics = []string{}
 )
@@ -130,31 +153,10 @@ func SetupMetrics() {
 	prometheus.Register(GetRecordRequestCounter)
 	prometheus.Register(GetRecordRequestCounter)
 	prometheus.Register(AckMissesCounter)
-	prometheus.Register(NackMissesCounter)
-}
-
-func GetMetrics() string {
-	metrics := make([]string, 30)
-
-	metrics = append(metrics, FormatMetric("empty_queue_responses", "counter", "The total number of GET /record requests that result in an empty queue response", atomic.LoadInt64(&EmptyQueueResponses)))
-
-	metrics = append(metrics, FormatMetric("full_queue_responses", "counter", "The total number of GET /record requests that result in a full queue response", atomic.LoadInt64(&FullQueueResponses)))
-
-	metrics = append(metrics, FormatMetric("http_total_requests", "counter", "The total number of http requests processed returning any code", atomic.LoadInt64(&TotalRequests)))
-
-	metrics = append(metrics, FormatMetric("http_500s", "counter", "The total number of returned 500 http responses", atomic.LoadInt64(&HTTP500s)))
-
-	metrics = append(metrics, FormatMetric("http_400s", "counter", "The total number of returned 400 http responses", atomic.LoadInt64(&HTTP400s)))
-
-	metrics = append(metrics, FormatMetric("ack_latency", "counter", "The sum of POST /ack latency. Use both ack_misses and acked_messages to calculate latency per request", atomic.LoadInt64(&AckLatency)))
-
-	metrics = append(metrics, FormatMetric("nack_latency", "counter", "The sum of POST /nack latency. Use both nack_misses and nacked_messages to calculate latency per request", atomic.LoadInt64(&NackLatency)))
-
-	// Resource metrics
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	metrics = append(metrics, FormatMetric("mem_bytes_heap", "gauge", "The current memory usage in bytes of the process' heap", m.Alloc))
-	metrics = append(metrics, FormatMetric("mem_bytes_sys", "gauge", "The current memory usage in bytes that the process has obtained from the os", m.Sys))
-
-	return strings.Join(metrics, "\n")
+	prometheus.Register(AckLatency)
+	prometheus.Register(NackLatency)
+	prometheus.Register(FullQueueResponsesCounter)
+	prometheus.Register(EmptyQueueResponsesCounter)
+	prometheus.Register(TotalRequestsCounter)
+	prometheus.Register(HTTPResponsesMetric)
 }
