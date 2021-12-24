@@ -17,8 +17,8 @@ services:
       - data:/tmp/etcd-data
   scylla:
     image: scylladb/scylla
-  request-router:
-    image: sqrr:latest
+  sqrr:
+    build: ../SuperQueueRequestRouter
     environment:
       - ETCD_HOSTS=etcd:2379
     ports:
@@ -44,6 +44,17 @@ services:
       - PARTITION=sq2
       - SCYLLA_HOSTS=scylla:9042
       - "ADVERTISE_URL=http://sq2:8080"
+    depends_on:
+      - scylla
+  sq3:
+    build: ./
+    environment:
+      - HTTP_PORT=8080
+      - ETCD_HOSTS=etcd:2379
+      - QUEUE_LEN=1000000
+      - PARTITION=sq3
+      - SCYLLA_HOSTS=scylla:9042
+      - "ADVERTISE_URL=http://sq3:8080"
     depends_on:
       - scylla
 volumes:
