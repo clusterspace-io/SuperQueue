@@ -19,10 +19,13 @@ services:
     image: scylladb/scylla
   request-router:
     image: sqrr:latest
-    environment:
-      - ETCD_HOSTS=etcd:2379
+    # environment:
+    #   - ETCD_HOSTS=
     ports:
       - 127.0.0.1:9090:9090
+    command:
+      - /app/superQueueRequestRouter
+      - -etcd-hosts=etcd:2379
   sq1:
     build: ./
     depends_on:
