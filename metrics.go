@@ -126,8 +126,6 @@ var (
 		Name: "http_responses",
 		Help: "Total number of http requests",
 	}, []string{"code", "endpoint"})
-
-	Metrics = []string{}
 )
 
 func FormatMetric(metricName, metricType, description string, value interface{}) string {
