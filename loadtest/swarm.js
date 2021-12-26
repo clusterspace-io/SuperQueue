@@ -1,24 +1,18 @@
 import http from 'k6/http';
 import { sleep } from 'k6';
 
-const hostPorts = [9090, 9091]
 export const options = {
   stages: [
-    { duration: '5s', target: 400 },
-    { duration: '30s', target: 400 },
+    { duration: '5s', target: 50 },
+    { duration: '30s', target: 50 },
     { duration: '5s', target: 0 },
   ],
   teardownTimeout: '10s'
 };
 
-function getRandomPort() {
-  const index = Math.round(Math.random() * (hostPorts.length - 1))
-  return hostPorts[index]
-}
-
 export default function () {
 
-  const resp = http.post(`http://localhost:${getRandomPort()}/record`, JSON.stringify({
+  const resp = http.post(`http://mainstack_sqrr:9090/record`, JSON.stringify({
     payload: 'this is a test payload'
   }), {
     headers: {
@@ -30,7 +24,7 @@ export default function () {
     console.log('Got state code', resp.status, 'with test', resp.status_text, 'post')
   }
   // sleep(0.5);
-  const resp2 = http.get(`http://localhost:${getRandomPort()}/record`, {
+  const resp2 = http.get(`http://mainstack_sqrr:9090/record`, {
     headers: {
       'sq-queue': 'test-ns'
     }
@@ -43,7 +37,7 @@ export default function () {
       const recordID = JSON.parse(resp2.body).id
       // sleep(0.1);
       // ack
-      const resp3 = http.post(`http://localhost:${getRandomPort()}/ack/${recordID}`, {}, {
+      const resp3 = http.post(`http://mainstack_sqrr:9090/ack/${recordID}`, {}, {
         headers: {
           'sq-queue': 'test-ns'
         }

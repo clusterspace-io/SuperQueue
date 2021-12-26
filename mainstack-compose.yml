@@ -1,0 +1,57 @@
+version: '3'
+services:
+  sqrr:
+    image: danthegoodman1/superqueuerequestrouter:0.1
+    environment:
+      - ETCD_HOSTS=backstack_etcd:2379
+    ports:
+      - 9090:9090
+    deploy:
+      replicas: 3
+    networks:
+      - core-infra
+  sq1:
+    image: danthegoodman1/superqueue:0.1
+    command:
+      - /app/superQueue
+      - -partition=sq1
+      - -queue-len=1000000
+      - -port=8080
+      - -advertise-url=http://mainstack_sq1:8080
+      - -scylla-hosts=backstack_scylla:9042
+      - -etcd-hosts=backstack_etcd:2379
+    ports:
+      - 8080:8080
+    networks:
+      - core-infra
+  sq2:
+    image: danthegoodman1/superqueue:0.1
+    command:
+      - /app/superQueue
+      - -partition=sq2
+      - -queue-len=1000000
+      - -port=8081
+      - -advertise-url=http://mainstack_sq2:8081
+      - -scylla-hosts=backstack_scylla:9042
+      - -etcd-hosts=backstack_etcd:2379
+    ports:
+      - 8081:8081
+    networks:
+      - core-infra
+  sq3:
+    image: danthegoodman1/superqueue:0.1
+    command:
+      - /app/superQueue
+      - -partition=sq3
+      - -queue-len=1000000
+      - -port=8082
+      - -advertise-url=http://mainstack_sq3:8082
+      - -scylla-hosts=backstack_scylla:9042
+      - -etcd-hosts=backstack_etcd:2379
+    ports:
+      - 8082:8082
+    networks:
+      - core-infra
+networks:
+  core-infra:
+    external: true

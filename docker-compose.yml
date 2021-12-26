@@ -23,6 +23,12 @@ services:
       - ETCD_HOSTS=etcd:2379
     ports:
       - 127.0.0.1:9090:9090
+  sqrr2:
+    build: ../SuperQueueRequestRouter
+    environment:
+      - ETCD_HOSTS=etcd:2379
+    ports:
+      - 127.0.0.1:9091:9090
   sq1:
     build: ./
     depends_on:
@@ -35,6 +41,8 @@ services:
       - -advertise-url=http://sq1:8080
       - -scylla-hosts=scylla:9042
       - -etcd-hosts=etcd:2379
+    ports:
+      - 127.0.0.1:8080:8080
   sq2:
     build: ./
     environment:

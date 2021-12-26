@@ -1,0 +1,52 @@
+version: '3'
+services:
+  etcd:
+    image: quay.io/coreos/etcd:latest
+    ports:
+      - 2379:2379
+      - 2380:2380
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_DATA_DIR=/data/data
+      - ETCD_WAL_DIR=/data/wal
+      - ETCD_NAME=etcd
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://0.0.0.0:2379
+    volumes:
+      - data:/tmp/etcd-data
+    networks:
+      - core-infra
+  scylla:
+    image: scylladb/scylla
+    ports:
+      - 9042:9042
+    networks:
+      - core-infra
+  # sq2:
+  #   image: danthegoodman1/superqueue:0.1
+  #   environment:
+  #     - HTTP_PORT=8080
+  #     - ETCD_HOSTS=backstack_etcd:2379
+  #     - QUEUE_LEN=1000000
+  #     - PARTITION=sq2
+  #     - SCYLLA_HOSTS=scylla:9042
+  #     - "ADVERTISE_URL=http://sq2:8080"
+  #   ports:
+  #     - 8080:8080
+  # sq3:
+  #   image: danthegoodman1/superqueue:0.1
+  #   environment:
+  #     - HTTP_PORT=8080
+  #     - ETCD_HOSTS=backstack_etcd:2379
+  #     - QUEUE_LEN=1000000
+  #     - PARTITION=sq3
+  #     - SCYLLA_HOSTS=scylla:9042
+  #     - "ADVERTISE_URL=http://sq3:8080"
+  #   ports:
+  #     - 8080:8080
+volumes:
+  data: {}
+networks:
+  core-infra:
+    external: true
