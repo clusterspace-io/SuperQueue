@@ -1,6 +1,6 @@
 import json
 
-with open('readme.txt') as f:
+with open('out.log') as f:
   lines = f.readlines()
 
   buckets = {
