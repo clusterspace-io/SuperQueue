@@ -91,6 +91,6 @@ func UpdateSD(c context.Context) error {
 		return err
 	}
 	EtcdClient.KV.Put(ctx, fmt.Sprintf("q_%s_%s", SQ.Name, SQ.Partition), string(b))
-	logger.Debug("Updated service discovery in ", time.Since(t))
+	logger.Debug("Updated service discovery in ", time.Since(t), " with record ", fmt.Sprintf("q_%s_%s", SQ.Name, SQ.Partition))
 	return nil
 }

@@ -3,31 +3,33 @@ import { sleep } from 'k6';
 
 export const options = {
   stages: [
-    { duration: '5s', target: 50 },
-    { duration: '30s', target: 50 },
+    { duration: '5s', target: 25 },
+    { duration: '30s', target: 25 },
     { duration: '5s', target: 0 },
   ],
-  teardownTimeout: '10s'
+  teardownTimeout: '10s',
 };
 
 export default function () {
 
-  const resp = http.post(`http://mainstack_sqrr:9090/record`, JSON.stringify({
+  const resp = http.post(`http://sqrr-service.default.svc.cluster.local:9090/record`, JSON.stringify({
     payload: 'this is a test payload'
   }), {
     headers: {
       'content-type': 'application/json',
       'sq-queue': 'test-ns'
-    }
+    },
+    timeout: '10s'
   });
   if (resp.status > 299 || resp.status < 200) {
     console.log('Got state code', resp.status, 'with test', resp.status_text, 'post')
   }
   // sleep(0.5);
-  const resp2 = http.get(`http://mainstack_sqrr:9090/record`, {
+  const resp2 = http.get(`http://sqrr-service.default.svc.cluster.local:9090/record`, {
     headers: {
       'sq-queue': 'test-ns'
-    }
+    },
+    timeout: '10s'
   })
   if (resp2.status > 299 || resp2.status < 200) {
     console.log('Got state code', resp2.status, 'with test', resp2.status_text, 'get')
@@ -37,10 +39,11 @@ export default function () {
       const recordID = JSON.parse(resp2.body).id
       // sleep(0.1);
       // ack
-      const resp3 = http.post(`http://mainstack_sqrr:9090/ack/${recordID}`, {}, {
+      const resp3 = http.post(`http://sqrr-service.default.svc.cluster.local:9090/ack/${recordID}`, {}, {
         headers: {
           'sq-queue': 'test-ns'
-        }
+        },
+        timeout: '10s'
       })
       if (resp3.status > 299 || resp3.status < 200) {
         console.log('Got state code', resp3.status, 'with test', resp3.status_text, 'ack')

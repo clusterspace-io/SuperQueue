@@ -1,11 +1,11 @@
 import http from 'k6/http';
 import { sleep } from 'k6';
 
-const hostPorts = [9090, 9091]
+const hostPorts = [9090]
 export const options = {
   stages: [
-    { duration: '5s', target: 400 },
-    { duration: '30s', target: 400 },
+    { duration: '5s', target: 100 },
+    { duration: '30s', target: 100 },
     { duration: '5s', target: 0 },
   ],
   teardownTimeout: '10s'

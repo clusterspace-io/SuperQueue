@@ -18,6 +18,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/segmentio/ksuid"
+	"golang.org/x/net/http2"
 )
 
 type HTTPServer struct {
@@ -53,7 +54,8 @@ func StartHTTPServer() {
 	Server.registerRoutes()
 
 	logger.Info("Starting SuperQueue on port ", HTTP_PORT)
-	Server.Echo.Start(":" + HTTP_PORT)
+	server := &http2.Server{}
+	Server.Echo.StartH2CServer(":"+HTTP_PORT, server)
 }
 
 func IncrementCounter(next echo.HandlerFunc) echo.HandlerFunc {

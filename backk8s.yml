@@ -1,0 +1,108 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: scylla
+  labels:
+    app: scylla
+spec:
+  replicas: 1
+  serviceName: scylla-service
+  selector:
+    matchLabels:
+      app: scylla
+  template:
+    metadata:
+      labels:
+        app: scylla
+    spec:
+      containers:
+        - name: scylla
+          image: scylladb/scylla
+          args:
+            - --smp
+            - "2"
+          resources:
+            requests:
+              memory: '2048M'
+              cpu: '2'
+            limits:
+              memory: '4096M'
+              cpu: "2"
+          ports:
+            - containerPort: 9042
+              protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scylla-service
+spec:
+  ports:
+    - port: 9042
+      targetPort: 9042
+      protocol: TCP
+  clusterIP: None
+  selector:
+    app: scylla
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: etcd
+  labels:
+    app: etcd
+spec:
+  replicas: 1
+  serviceName: etcd-service
+  selector:
+    matchLabels:
+      app: etcd
+  template:
+    metadata:
+      labels:
+        app: etcd
+    spec:
+      containers:
+        - name: etcd
+          image: quay.io/coreos/etcd:latest
+          env:
+            - name: ALLOW_NONE_AUTHENTICATION
+              value: "yes"
+            - name: ETCD_DATA_DIR
+              value: /data/data
+            - name: ETCD_WAL_DIR
+              value: /data/wal
+            - name: ETCD_NAME
+              value: etcd
+            - name: ETCD_LISTEN_PEER_URLS
+              value: http://0.0.0.0:2380
+            - name: ETCD_LISTEN_CLIENT_URLS
+              value: http://0.0.0.0:2379
+            - name: ETCD_ADVERTISE_CLIENT_URLS
+              value: http://0.0.0.0:2379
+          resources:
+            requests:
+              memory: '2048M'
+              cpu: '2'
+            limits:
+              memory: '4096M'
+              cpu: "2"
+          ports:
+            - containerPort: 2379
+              protocol: TCP
+            - containerPort: 2380
+              protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: etcd-service
+spec:
+  ports:
+    - port: 2379
+      targetPort: 2379
+      protocol: TCP
+  clusterIP: None
+  selector:
+    app: etcd
