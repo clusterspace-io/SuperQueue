@@ -5,8 +5,8 @@ metadata:
   labels:
     app: sq
 spec:
-  replicas: 1
-  serviceName: sq
+  replicas: 4
+  serviceName: sq-service
   selector:
     matchLabels:
       app: sq
@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: sq
-          image: $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/sq:$SEM_VER
+          image: danthegoodman1/superqueue:0.1
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -25,18 +25,18 @@ spec:
                   fieldPath: metadata.name
           command: ["/app/superQueue"]
           args:
-            - -partition=$MY_POD_NAME
+            - -partition=$(MY_POD_NAME)
             - -queue-len=1000000
             - -port=8080
-            - -advertise-url="http://$MY_POD_NAME.sq.default.svc.cluster.local:8080"
-            - -scylla-hosts=scylla.default.svc.cluster.local:9042
-            - -etcd-hosts=etcd.default.svc.cluster.local:2379
+            - -advertise-url=http://$(MY_POD_NAME).sq-service.default.svc.cluster.local:8080
+            - -scylla-hosts=scylla-0.scylla-service.default.svc.cluster.local:9042
+            - -etcd-hosts=etcd-0.etcd-service.default.svc.cluster.local:2379
           resources:
             requests:
               memory: '1024M'
               cpu: '1'
             limits:
-              memory: '2048M'
+              memory: '1024M'
               cpu: "1"
           ports:
             - containerPort: 8080

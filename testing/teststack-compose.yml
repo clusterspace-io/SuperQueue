@@ -1,0 +1,19 @@
+version: '3'
+services:
+  test-services:
+    image: danthegoodman1/sqtest:0.1
+    deploy:
+      replicas: 9
+      restart_policy:
+        condition: none
+    networks:
+      - core-infra
+  # test-this:
+  #   image: alpine
+  #   command: echo hello world
+  #   deploy:
+  #     restart_policy:
+  #       condition: none
+networks:
+  core-infra:
+    external: true

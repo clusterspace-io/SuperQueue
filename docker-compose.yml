@@ -17,12 +17,20 @@ services:
       - data:/tmp/etcd-data
   scylla:
     image: scylladb/scylla
+    ports:
+      - 127.0.0.1:9042:9042
   sqrr:
     build: ../SuperQueueRequestRouter
     environment:
       - ETCD_HOSTS=etcd:2379
     ports:
       - 127.0.0.1:9090:9090
+  sqrr2:
+    build: ../SuperQueueRequestRouter
+    environment:
+      - ETCD_HOSTS=etcd:2379
+    ports:
+      - 127.0.0.1:9091:9090
   sq1:
     build: ./
     depends_on:
@@ -35,6 +43,8 @@ services:
       - -advertise-url=http://sq1:8080
       - -scylla-hosts=scylla:9042
       - -etcd-hosts=etcd:2379
+    ports:
+      - 127.0.0.1:8080:8080
   sq2:
     build: ./
     environment:
@@ -46,16 +56,16 @@ services:
       - "ADVERTISE_URL=http://sq2:8080"
     depends_on:
       - scylla
-  sq3:
-    build: ./
-    environment:
-      - HTTP_PORT=8080
-      - ETCD_HOSTS=etcd:2379
-      - QUEUE_LEN=1000000
-      - PARTITION=sq3
-      - SCYLLA_HOSTS=scylla:9042
-      - "ADVERTISE_URL=http://sq3:8080"
-    depends_on:
-      - scylla
+  # sq3:
+  #   build: ./
+  #   environment:
+  #     - HTTP_PORT=8080
+  #     - ETCD_HOSTS=etcd:2379
+  #     - QUEUE_LEN=1000000
+  #     - PARTITION=sq3
+  #     - SCYLLA_HOSTS=scylla:9042
+  #     - "ADVERTISE_URL=http://sq3:8080"
+  #   depends_on:
+  #     - scylla
 volumes:
   data: {}

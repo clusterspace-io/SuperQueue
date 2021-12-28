@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: testing-job
+spec:
+  parallelism: 8
+  template:
+    spec:
+      containers:
+        - name: testing
+          image: danthegoodman1/sqtest:0.5
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          resources:
+            requests:
+              memory: '1024M'
+              cpu: '2'
+            limits:
+              memory: '1024M'
+              cpu: "2"
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+      restartPolicy: Never
+  backoffLimit: 1
