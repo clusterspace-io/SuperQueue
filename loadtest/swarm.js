@@ -1,5 +1,5 @@
 import http from 'k6/http';
-import { sleep } from 'k6';
+import { sleep, check } from 'k6';
 
 export const options = {
   stages: [
@@ -21,6 +21,9 @@ export default function () {
     },
     timeout: '10s'
   });
+  check(resp, {
+    'protocol is HTTP/2': (r) => r.proto === 'HTTP/2.0',
+  })
   if (resp.status > 299 || resp.status < 200) {
     console.log('Got state code', resp.status, 'with test', resp.status_text, 'post')
   }
