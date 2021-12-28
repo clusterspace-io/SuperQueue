@@ -8,7 +8,8 @@ export const options = {
     { duration: '30s', target: 100 },
     { duration: '5s', target: 0 },
   ],
-  teardownTimeout: '10s'
+  teardownTimeout: '10s',
+  insecureSkipTLSVerify: true
 };
 
 function getRandomPort() {
@@ -18,7 +19,7 @@ function getRandomPort() {
 
 export default function () {
 
-  const resp = http.post(`http://localhost:${getRandomPort()}/record`, JSON.stringify({
+  const resp = http.post(`https://localhost:${getRandomPort()}/record`, JSON.stringify({
     payload: 'this is a test payload'
   }), {
     headers: {
@@ -26,14 +27,14 @@ export default function () {
       'sq-queue': 'test-ns'
     }
   });
-  check(resp, {
-    'protocol is HTTP/2': (r) => r.proto === 'HTTP/2.0',
-  })
+  // check(resp, {
+  //   'protocol is HTTP/2': (r) => r.proto === 'HTTP/2.0',
+  // })
   if (resp.status > 299 || resp.status < 200) {
     console.log('Got state code', resp.status, 'with test', resp.status_text, 'post')
   }
   // sleep(0.5);
-  const resp2 = http.get(`http://localhost:${getRandomPort()}/record`, {
+  const resp2 = http.get(`https://localhost:${getRandomPort()}/record`, {
     headers: {
       'sq-queue': 'test-ns'
     }
@@ -46,7 +47,7 @@ export default function () {
       const recordID = JSON.parse(resp2.body).id
       // sleep(0.1);
       // ack
-      const resp3 = http.post(`http://localhost:${getRandomPort()}/ack/${recordID}`, {}, {
+      const resp3 = http.post(`https://localhost:${getRandomPort()}/ack/${recordID}`, {}, {
         headers: {
           'sq-queue': 'test-ns'
         }
