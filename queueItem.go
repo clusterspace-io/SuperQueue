@@ -163,8 +163,8 @@ func (i *QueueItem) addItemToItemsTable(namespace string) error {
 	// 	INSERT INTO items (id, payload, bucket, created_at, expire_at, in_flight_timeout)
 	// 	VALUES ($1, $2, $3, $4, $5, $6)
 	// `, i.ID, i.Payload, i.StorageBucket, i.CreatedAt, i.ExpireAt, i.InFlightTimeoutSeconds)
-	time.Sleep(time.Millisecond * 3)
-	return nil
+	// time.Sleep(time.Millisecond * 3)
+	// return nil
 	q := DBSession.Query(ItemsTable.Insert()).BindMap(map[string]interface{}{
 		"namespace":         namespace,
 		"id":                i.ID,
@@ -184,8 +184,8 @@ func (i *QueueItem) addItemState(namespace, state string, createdAt time.Time, d
 	// 	INSERT INTO item_states (id, version, state, created_at, attempts, delay_to, error, error_message)
 	// 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	// `, i.ID, i.Version, state, createdAt, i.Attempts, delayTo, itemError, itemErrorMessage)
-	time.Sleep(time.Millisecond * 3)
-	return nil
+	// time.Sleep(time.Millisecond * 3)
+	// return nil
 	q := DBSession.Query(ItemStatesTable.Insert()).BindMap(map[string]interface{}{
 		"namespace":     namespace,
 		"id":            i.ID,
