@@ -4,7 +4,6 @@ import (
 	"SuperQueue/logger"
 	"os"
 	"os/signal"
-	"runtime"
 	"runtime/pprof"
 	"syscall"
 
@@ -23,7 +22,6 @@ func main() {
 		if perr != nil {
 			panic(perr)
 		}
-		runtime.SetCPUProfileRate(100)
 		perr = pprof.StartCPUProfile(f)
 		if perr != nil {
 			panic(perr)
