@@ -6,8 +6,6 @@ import (
 	"os/signal"
 	"runtime/pprof"
 	"syscall"
-
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -15,7 +13,7 @@ var (
 )
 
 func main() {
-	logger.Logger.SetLevel(logrus.DebugLevel)
+	logger.ConfigureLogger()
 	if os.Getenv("TEST_MODE") == "true" {
 		logger.Warn("TEST_MODE true, enabling cpu profiling")
 		f, perr := os.Create("cpu.pprof")
