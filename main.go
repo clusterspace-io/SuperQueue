@@ -15,7 +15,7 @@ var (
 )
 
 func main() {
-	logger.Logger.Logger.SetLevel(logrus.DebugLevel)
+	logger.Logger.SetLevel(logrus.DebugLevel)
 	if os.Getenv("TEST_MODE") == "true" {
 		logger.Warn("TEST_MODE true, enabling cpu profiling")
 		f, perr := os.Create("cpu.pprof")
